@@ -3,6 +3,6 @@
 
 #include <SDL2/SDL.h>
 
-void image_grayscale(SDL_Surface *surface);
+void conversion(SDL_Surface *surface);
 
 #endif 

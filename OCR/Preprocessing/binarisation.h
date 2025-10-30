@@ -3,6 +3,6 @@
 
 #include <SDL2/SDL.h>
 
-void image_binarize(SDL_Surface *surface);
+void conversion_bina(SDL_Surface *surface);
 
 #endif 

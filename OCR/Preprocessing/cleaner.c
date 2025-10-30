@@ -1,43 +1,66 @@
 #include "../Utils/image.h"
 #include "preprocessing.h"
 
-static const int DECALAGES_VOISINS[8][2] = {
-    {-1, -1}, {-1, 0}, {-1, 1},
-    {0, -1},           {0, 1},
-    {1, -1},  {1, 0},  {1, 1}
-};
+#include "cleaner.h"
 
-SDL_Surface *image_noise_reduction(SDL_Surface *surface)
+SDL_Surface *reduire_bruit(SDL_Surface *surface)
 {
-    SDL_Surface *image_nettoyee = image_new(surface->h, surface->w);
+    if (!surface)
+        return NULL;
 
-    for (int ligne = 0; ligne < surface->h; ligne++)
+    SDL_Surface *output = image_new(surface->h, surface->w);
+
+    for (int y = 1; y < surface->h - 1; y++)
     {
-        for (int colonne = 0; colonne < surface->w; colonne++)
+        for (int x = 1; x < surface->w - 1; x++)
         {
-            int voisins_blancs = 0;
+            int white_score = 0;
+            int black_score = 0;
 
-            for (int voisin = 0; voisin < 8; voisin++)
+            for (int dy = -1; dy <= 1; dy++)
             {
-                int voisin_ligne = ligne + DECALAGES_VOISINS[voisin][0];
-                int voisin_colonne = colonne + DECALAGES_VOISINS[voisin][1];
-
-                if (voisin_ligne >= 0 && voisin_ligne < surface->h &&
-                    voisin_colonne >= 0 && voisin_colonne < surface->w)
+                for (int dx = -1; dx <= 1; dx++)
                 {
-                    voisins_blancs += is_white_pixel(surface, voisin_ligne, voisin_colonne);
+                    if (dx == 0 && dy == 0)
+                        continue;
+
+                    int weight = (dx == 0 || dy == 0) ? 2 : 1;
+
+                    if (is_white_pixel(surface, y + dy, x + dx))
+                        white_score += weight;
+                    else
+                        black_score += weight;
                 }
             }
 
-            Uint32 pixel_blanc = SDL_MapRGB(surface->format, 255, 255, 255);
-            Uint32 pixel_noir = SDL_MapRGB(surface->format, 0, 0, 0);
-
-            if (voisins_blancs > 4)
-                image_set_pixel(image_nettoyee, ligne, colonne, pixel_blanc);
+            int center_white = is_white_pixel(surface, y, x);
+            if (center_white)
+                white_score += 3;
             else
-                image_set_pixel(image_nettoyee, ligne, colonne, pixel_noir);
+                black_score += 3;
+
+            Uint32 new_pixel;
+            if (white_score > black_score)
+                new_pixel = SDL_MapRGB(surface->format, 255, 255, 255);
+            else
+                new_pixel = SDL_MapRGB(surface->format, 0, 0, 0);
+
+            image_set_pixel(output, y, x, new_pixel);
         }
     }
 
-    return image_nettoyee;
+    for (int x = 0; x < surface->w; x++)
+    {
+        image_set_pixel(output, 0, x, image_get_pixel(surface, 0, x));
+        image_set_pixel(output, surface->h - 1, x,
+                        image_get_pixel(surface, surface->h - 1, x));
+    }
+    for (int y = 0; y < surface->h; y++)
+    {
+        image_set_pixel(output, y, 0, image_get_pixel(surface, y, 0));
+        image_set_pixel(output, y, surface->w - 1,
+                        image_get_pixel(surface, y, surface->w - 1));
+    }
+
+    return output;
 }

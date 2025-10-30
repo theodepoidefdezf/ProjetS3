@@ -1,22 +1,35 @@
-#include <stdio.h>
 #include <SDL2/SDL.h>
-#include "color_modif.h"
 #include "../Utils/image.h"
+#include "color_modif.h"
 
-void image_grayscale(SDL_Surface *surface)
+void conversion(SDL_Surface *surface)
 {
-    for (int ligne = 0; ligne < surface->h; ligne++)
+    if (!surface)
+        return;
+
+    for (int y = 0; y < surface->h; y++)
     {
-        for (int colonne = 0; colonne < surface->w; colonne++)
+        for (int x = 0; x < surface->w; x++)
         {
-            Uint8 rouge, vert, bleu;
-            Uint32 pixel = image_get_pixel(surface, ligne, colonne);
-            SDL_GetRGB(pixel, surface->format, &rouge, &vert, &bleu);
+            Uint8 r, g, b;
+            Uint32 pixel = image_get_pixel(surface, y, x);
+            SDL_GetRGB(pixel, surface->format, &r, &g, &b);
 
-            Uint8 niveau_gris = 0.2126 * rouge + 0.7152 * vert + 0.0722 * bleu;
+            float brightness = sqrtf(
+                (r * r * 0.241f) +
+                (g * g * 0.691f) +
+                (b * b * 0.068f)
+            );
 
-            Uint32 pixel_gris = SDL_MapRGB(surface->format, niveau_gris, niveau_gris, niveau_gris);
-            image_set_pixel(surface, ligne, colonne, pixel_gris);
+            float avg = (r + g + b) / 3.0f;
+            float saturation = fabsf(r - avg) + fabsf(g - avg) + fabsf(b - avg);
+            if (saturation > 50.0f)
+                brightness = (brightness * 0.9f) + (avg * 0.1f);
+
+            Uint8 gray = (Uint8)(brightness > 255 ? 255 : brightness);
+
+            Uint32 gray_pixel = SDL_MapRGB(surface->format, gray, gray, gray);
+            image_set_pixel(surface, y, x, gray_pixel);
         }
     }
 }

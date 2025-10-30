@@ -9,11 +9,11 @@
 #include "rotation.h"
 #include "cleaner.h"
 
-static const char *PATH_IMG_GRAYSCALE          = "../output/image_grayscale.bmp";
-static const char *PATH_IMG_BINARIZE           = "../output/image_binarize.bmp";
-static const char *PATH_IMG_AUTO_ROTATION      = "../output/image_auto_rotation.bmp";
-static const char *PATH_IMG_NOISE_REDUC_AUTO   = "../output/image_noise_reduc_auto.bmp";
-static const char *PATH_IMG_NOISE_REDUC_MANUAL = "../output/image_noise_reduc_manual.bmp";
+static const char *PATH_IMG_GRAYSCALE        = "../output/image_grayscale.bmp";
+static const char *PATH_IMG_BINARIZE         = "../output/image_binarize.bmp";
+static const char *PATH_IMG_AUTO_ROTATION    = "../output/image_auto_rotation.bmp";
+static const char *PATH_IMG_NOISE_REDUC_AUTO = "../output/image_noise_reduc_auto.bmp";
+static const char *PATH_IMG_NOISE_REDUC_MAN  = "../output/image_noise_reduc_manual.bmp";
 
 static void ensure_output_folder(void)
 {
@@ -21,86 +21,71 @@ static void ensure_output_folder(void)
         fprintf(stderr, "Impossible de créer le dossier ../output\n");
 }
 
-static void save_surface_compat(SDL_Surface *surface, const char *path)
+static void take(SDL_Surface *surface, const char *path)
 {
     if (!surface)
     {
-        fprintf(stderr, "Tentative de sauvegarde d'une surface NULL : %s\n", path);
+        fprintf(stderr, "Surface NULL non sauvegardée : %s\n", path);
         return;
     }
 
-    SDL_Surface *compatible = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGB24, 0);
-    if (!compatible)
+    SDL_Surface *bmp_surface = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGB24, 0);
+    if (!bmp_surface)
     {
-        fprintf(stderr, "Erreur conversion format avant sauvegarde : %s\n", SDL_GetError());
+        fprintf(stderr, "Conversion format échouée avant sauvegarde : %s\n", SDL_GetError());
         return;
     }
 
-    if (SDL_SaveBMP(compatible, path) != 0)
-        fprintf(stderr, "Erreur sauvegarde BMP (%s) : %s\n", path, SDL_GetError());
+    if (SDL_SaveBMP(bmp_surface, path) != 0)
+        fprintf(stderr, "Erreur sauvegarde BMP (%s): %s\n", path, SDL_GetError());
     else
-        printf("Image sauvegardée : %s (%dx%d)\n", path, compatible->w, compatible->h);
+        printf("Image sauvegardée : %s\n", path);
 
-    SDL_FreeSurface(compatible);
+    SDL_FreeSurface(bmp_surface);
 }
 
-// Fonction principale de prétraitement
+
 void preprocessing(const char *image_path)
 {
     ensure_output_folder();
 
-    // Charger l’image
-    SDL_Surface *image = image_load(image_path);
-    if (!image)
+    SDL_Surface *src = image_load(image_path);
+    if (!src)
     {
-        fprintf(stderr, "Impossible de charger l’image : %s\n", image_path);
+        fprintf(stderr, "Impossible de charger : %s\n", image_path);
         return;
     }
 
-    printf("Image chargée : %s (%dx%d, %dbpp)\n",
-           image_path, image->w, image->h, image->format->BitsPerPixel);
+    printf("Prétraitement de : %s\n", image_path);
 
-    // Étape 1 : Niveaux de gris
-    image_grayscale(image);
-    save_surface_compat(image, PATH_IMG_GRAYSCALE);
+    SDL_Surface *grayscale = SDL_ConvertSurface(src, src->format, 0);
+    conversion(grayscale);
+    take(grayscale, PATH_IMG_GRAYSCALE);
 
-    // Étape 2 : Binarisation
-    image_binarize(image);
-    save_surface_compat(image, PATH_IMG_BINARIZE);
+    SDL_Surface *binarized = SDL_ConvertSurface(grayscale, grayscale->format, 0);
+    conversion_bina(binarized);
+    take(binarized, PATH_IMG_BINARIZE);
 
-    // Étape 3 : Correction automatique de l’inclinaison
-    SDL_Surface *auto_rotated = image_deskew(image);
-    if (!auto_rotated)
-    {
-        fprintf(stderr, "Erreur lors du deskew.\n");
-        SDL_FreeSurface(image);
-        return;
-    }
-    save_surface_compat(auto_rotated, PATH_IMG_AUTO_ROTATION);
+    SDL_Surface *auto_rotated = image_deskew(binarized);
+    take(auto_rotated, PATH_IMG_AUTO_ROTATION);
 
-    // Étape 4 : Réduction du bruit
-    SDL_Surface *final_auto   = image_noise_reduction(auto_rotated);
-    SDL_Surface *final_manual = image_noise_reduction(image);
+    SDL_Surface *noise_auto = reduire_bruit(auto_rotated);
+    take(noise_auto, PATH_IMG_NOISE_REDUC_AUTO);
 
-    if (final_auto)
-        save_surface_compat(final_auto, PATH_IMG_NOISE_REDUC_AUTO);
-    else
-        fprintf(stderr, "Échec réduction bruit (auto)\n");
+    SDL_Surface *noise_manual = reduire_bruit(binarized);
+    take(noise_manual, PATH_IMG_NOISE_REDUC_MAN);
 
-    if (final_manual)
-        save_surface_compat(final_manual, PATH_IMG_NOISE_REDUC_MANUAL);
-    else
-        fprintf(stderr, "Échec réduction bruit (manuel)\n");
+    printf("\nToutes les images ont été générées dans ../output :\n");
+    printf(" - %s\n", PATH_IMG_GRAYSCALE);
+    printf(" - %s\n", PATH_IMG_BINARIZE);
+    printf(" - %s\n", PATH_IMG_AUTO_ROTATION);
+    printf(" - %s\n", PATH_IMG_NOISE_REDUC_AUTO);
+    printf(" - %s\n", PATH_IMG_NOISE_REDUC_MAN);
 
-    printf("Réduction du bruit terminée.\n");
-    printf("   - Auto   : %s\n", PATH_IMG_NOISE_REDUC_AUTO);
-    printf("   - Manuel : %s\n", PATH_IMG_NOISE_REDUC_MANUAL);
-
-    SDL_FreeSurface(image);
+    SDL_FreeSurface(src);
+    SDL_FreeSurface(grayscale);
+    SDL_FreeSurface(binarized);
     SDL_FreeSurface(auto_rotated);
-    if (final_auto) SDL_FreeSurface(final_auto);
-    if (final_manual) SDL_FreeSurface(final_manual);
-
-    printf("Prétraitement terminé avec succès !\n");
-    printf("Résultats disponibles dans le dossier ../output/\n");
+    SDL_FreeSurface(noise_auto);
+    SDL_FreeSurface(noise_manual);
 }

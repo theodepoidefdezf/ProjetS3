@@ -1,140 +1,97 @@
-#include <stdlib.h>
 #include <SDL2/SDL.h>
+#include <stdlib.h>
+#include <math.h>
+#include "../Utils/image.h"
 #include "binarisation.h"
 
-// --- Fonctions internes pour accéder aux pixels ---
-static Uint8* image_get_pixel_ref(SDL_Surface *image, int h, int w)
+static Uint8 get_grayscale(Uint8 r, Uint8 g, Uint8 b)
 {
-    int bpp = image->format->BytesPerPixel;
-    Uint8 *pixels = image->pixels;
-    return pixels + h * image->pitch + w * bpp;
+    return (Uint8)(0.2126 * r + 0.7152 * g + 0.0722 * b);
 }
 
-static Uint32 image_get_pixel(SDL_Surface *image, int h, int w)
+static void build_histogram(SDL_Surface *img, unsigned long hist[256])
 {
-    Uint8 *p = image_get_pixel_ref(image, h, w);
-    switch (image->format->BytesPerPixel)
-    {
-        case 1: return *p;
-        case 2: return *(Uint16 *)p;
-        case 3:
-            return (SDL_BYTEORDER == SDL_BIG_ENDIAN)
-                ? p[0] << 16 | p[1] << 8 | p[2]
-                : p[0] | p[1] << 8 | p[2] << 16;
-        case 4: return *(Uint32 *)p;
-        default: return 0;
-    }
-}
+    for (int i = 0; i < 256; i++)
+        hist[i] = 0;
 
-static void image_set_pixel(SDL_Surface *image, int h, int w, Uint32 pixel)
-{
-    Uint8 *p = image_get_pixel_ref(image, h, w);
-    switch (image->format->BytesPerPixel)
+    for (int y = 0; y < img->h; y++)
     {
-        case 1: *p = pixel; break;
-        case 2: *(Uint16 *)p = pixel; break;
-        case 3:
-            if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
-            {
-                p[0] = (pixel >> 16) & 0xff;
-                p[1] = (pixel >> 8) & 0xff;
-                p[2] = pixel & 0xff;
-            }
-            else
-            {
-                p[0] = pixel & 0xff;
-                p[1] = (pixel >> 8) & 0xff;
-                p[2] = (pixel >> 16) & 0xff;
-            }
-            break;
-        case 4: *(Uint32 *)p = pixel; break;
-        default: break;
-    }
-}
-
-static int *compute_histogram(SDL_Surface *surface)
-{
-    int *histogramme = calloc(256, sizeof(int));
-    if (!histogramme)
-        return NULL;
-
-    for (int ligne = 0; ligne < surface->h; ligne++)
-    {
-        for (int colonne = 0; colonne < surface->w; colonne++)
+        for (int x = 0; x < img->w; x++)
         {
-            Uint8 rouge, vert, bleu;
-            Uint32 pixel = image_get_pixel(surface, ligne, colonne);
-            SDL_GetRGB(pixel, surface->format, &rouge, &vert, &bleu);
-            histogramme[rouge]++;
+            Uint8 r, g, b;
+            Uint32 pixel = image_get_pixel(img, y, x);
+            SDL_GetRGB(pixel, img->format, &r, &g, &b);
+
+            Uint8 gray = get_grayscale(r, g, b);
+            hist[gray]++;
         }
     }
-    return histogramme;
 }
 
-static int compute_otsu_threshold(SDL_Surface *surface)
+static int otsu_threshold(SDL_Surface *img)
 {
-    int meilleur_seuil = 0;
-    double variance_max = 0.0;
-    int somme_totale = 0;
-    int somme_arriere_plan = 0;
-    int poids_arriere_plan = 0;
-    int total_pixels = surface->h * surface->w;
+    unsigned long hist[256];
+    build_histogram(img, hist);
 
-    int *histogramme = compute_histogram(surface);
-    if (!histogramme)
-        return 127;
-
+    unsigned long total_pixels = img->w * img->h;
+    double sum_total = 0;
     for (int i = 0; i < 256; i++)
-        somme_totale += i * histogramme[i];
+        sum_total += i * hist[i];
 
-    for (int i = 0; i < 256; i++)
+    unsigned long weight_bg = 0;  
+    double sum_bg = 0;           
+    double max_variance = 0.0;
+    int threshold = 127;
+
+    for (int t = 0; t < 256; t++)
     {
-        poids_arriere_plan += histogramme[i];
-        int poids_avant_plan = total_pixels - poids_arriere_plan;
-
-        if (poids_arriere_plan == 0 || poids_avant_plan == 0)
+        weight_bg += hist[t];
+        if (weight_bg == 0)
             continue;
 
-        somme_arriere_plan += i * histogramme[i];
-        int somme_avant_plan = somme_totale - somme_arriere_plan;
+        unsigned long weight_fg = total_pixels - weight_bg;
+        if (weight_fg == 0)
+            break;
 
-        double poidsB = poids_arriere_plan;
-        double poidsF = poids_avant_plan;
-        double moyenneB = somme_arriere_plan / poidsB;
-        double moyenneF = somme_avant_plan / poidsF;
-        double difference = moyenneB - moyenneF;
+        sum_bg += (double)t * hist[t];
 
-        double variance = poidsB * poidsF * difference * difference;
+        double mean_bg = sum_bg / weight_bg;
+        double mean_fg = (sum_total - sum_bg) / weight_fg;
 
-        if (variance > variance_max)
+        double diff = mean_bg - mean_fg;
+        double variance_between = weight_bg * weight_fg * diff * diff;
+
+        if (variance_between > max_variance)
         {
-            variance_max = variance;
-            meilleur_seuil = i;
+            max_variance = variance_between;
+            threshold = t;
         }
     }
 
-    free(histogramme);
-    return meilleur_seuil;
+    return threshold;
 }
 
-void image_binarize(SDL_Surface *surface)
+void conversion_bina(SDL_Surface *surface)
 {
-    int seuil = compute_otsu_threshold(surface);
+    int threshold = otsu_threshold(surface);
 
-    for (int ligne = 0; ligne < surface->h; ligne++)
+    for (int y = 0; y < surface->h; y++)
     {
-        for (int colonne = 0; colonne < surface->w; colonne++)
+        for (int x = 0; x < surface->w; x++)
         {
-            Uint8 rouge, vert, bleu;
-            Uint32 pixel = image_get_pixel(surface, ligne, colonne);
-            SDL_GetRGB(pixel, surface->format, &rouge, &vert, &bleu);
+            Uint8 r, g, b;
+            Uint32 pixel = image_get_pixel(surface, y, x);
+            SDL_GetRGB(pixel, surface->format, &r, &g, &b);
 
-            Uint32 nouveau_pixel =
-                (rouge > seuil)
-                    ? SDL_MapRGB(surface->format, 255, 255, 255)
-                    : SDL_MapRGB(surface->format, 0, 0, 0);
+            Uint8 gray = get_grayscale(r, g, b);
+            Uint32 new_pixel;
 
-            image_set_pixel(surface, ligne, colonne, nouveau_pixel);
+            if (gray > threshold + 5)
+                new_pixel = SDL_MapRGB(surface->format, 255, 255, 255);
+            else
+                new_pixel = SDL_MapRGB(surface->format, 0, 0, 0);
+
+            image_set_pixel(surface, y, x, new_pixel);
         }
     }
 }

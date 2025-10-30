@@ -3,8 +3,7 @@
 
 #include <SDL2/SDL.h>
 
-SDL_Surface *image_noise_reduction(SDL_Surface *surface);
+SDL_Surface *reduire_bruit(SDL_Surface *surface);
 
-void image_set_pixel(SDL_Surface *image, int h, int w, Uint32 pixel);
 
 #endif 
