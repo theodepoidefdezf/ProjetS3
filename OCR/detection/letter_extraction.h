@@ -1,7 +1,14 @@
 #ifndef LETTER_EXTRACTION_H
 #define LETTER_EXTRACTION_H
+
 #include "../utils/structs.h"
 
-Letters extract_letters(Grid grid, Image img);
+/**
+ * @brief Extrait chaque lettre d'une image contenant une liste de mots.
+ *
+ * @param word_list_image L'image (struct Image) contenant SEULEMENT la liste de mots.
+ * @return Une structure 'Letters' contenant les images de chaque lettre.
+ */
+Letters extract_letters(Image word_list_image);
 
-#endif
+#endif // LETTER_EXTRACTION_H
