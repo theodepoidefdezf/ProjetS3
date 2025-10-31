@@ -2,63 +2,49 @@
 #include <stdlib.h>
 #include <stdio.h> 
 
-// Définir la taille standard de sortie pour Théo
+// taille sortie et lettre max
 #define TAILLE_STANDARD 50
-// Estimer un nombre max de lettres pour la première allocation
 #define MAX_LETTERS_ESTIMATE 200
 
-/**
- * @brief Crée une nouvelle image 50x50 et y copie la lettre extraite.
- *
- * C'est la fonction qui crée la matrice standardisée pour Théo.
- * Elle alloue la mémoire pour la nouvelle image.
- *
- * @param input_image L'image source (liste de mots).
- * @param x_start Coordonnée x de début de la lettre.
- * @param x_end Coordonnée x de fin de la lettre.
- * @param y_start Coordonnée y de début de la lettre.
- * @param y_end Coordonnée y de fin de la lettre.
- * @return Une nouvelle structure 'Image' (50x50) allouée.
- */
 Image standardiser_et_creer_image(Image input_image, int x_start, int x_end, int y_start, int y_end)
 {
-    // 1. Créer la nouvelle image de sortie
+    // création de la nouvelle image
     Image letter_img;
     letter_img.width = TAILLE_STANDARD;
     letter_img.height = TAILLE_STANDARD;
     
-    // 2. Allouer la mémoire pour ses données (un tableau 1D de 50*50
+    // allocation memore 50*50
     letter_img.data = (unsigned char *)calloc(TAILLE_STANDARD * TAILLE_STANDARD, sizeof(unsigned char));
 
     if (letter_img.data == NULL) {
-        // Gérer l'échec d'allocation
+        // err alloc
         fprintf(stderr, "Erreur d'allocation pour une nouvelle image de lettre.\n");
         exit(EXIT_FAILURE);
     }
 
-    // 3. Calculer la taille de la lettre et les marges pour la centrer
+    // Calc taille  lettre & marges for centrer
     int largeur_caractere = x_end - x_start + 1;
     int hauteur_caractere = y_end - y_start + 1;
     int marge_x = (TAILLE_STANDARD - largeur_caractere) / 2;
     int marge_y = (TAILLE_STANDARD - hauteur_caractere) / 2;
 
-    // 4. Copier les pixels de l'image source vers l'image de destination
+    // ctrl c pixels de l'image to  l'image de dest
     for (int i = 0; i < hauteur_caractere; i++) {
         for (int j = 0; j < largeur_caractere; j++) {
             
-            // Coordonnée source (sur l'image d'entrée)
+            // Coordo image d'entréee 
             int source_y = y_start + i;
             int source_x = x_start + j;
-            // Indice 1D de la source
+            // Indice 1D source
             int source_idx = source_y * input_image.width + source_x;
 
-            // Coordonnée destination (sur l'image 50x50)
+            // Coordonnée dest  5050
             int dest_y = marge_y + i;
             int dest_x = marge_x + j;
-            // Indice 1D de la destination
+            // Indice 1D dest 
             int dest_idx = dest_y * TAILLE_STANDARD + dest_x;
 
-            // Copier le pixel (après vérification des limites)
+            // crtl c pixel 
             if (dest_y >= 0 && dest_y < TAILLE_STANDARD && dest_x >= 0 && dest_x < TAILLE_STANDARD) {
                 letter_img.data[dest_idx] = input_image.data[source_idx];
             }
@@ -68,17 +54,12 @@ Image standardiser_et_creer_image(Image input_image, int x_start, int x_end, int
     return letter_img;
 }
 
-
-/**
- * Fonction principale (déclarée dans le .h)
- */
 Letters extract_letters(Image input_image)
 {
     printf("--- Début de l'extraction des lettres ---\n");
 
-    // Initialiser la structure 'Letters' qu'on va renvoyer
     Letters result;
-    // Allouer un tableau pour stocker les 'Image' des lettres
+    // alloc tab img letre 
     result.letters = (Image *)malloc(sizeof(Image) * MAX_LETTERS_ESTIMATE);
     result.count = 0;
     
@@ -93,11 +74,11 @@ Letters extract_letters(Image input_image)
     int y_start = 0;
     int en_cours_de_ligne = 0;
 
-    // Parcourir les lignes (Projection Horizontale)
+    // Parcour lignes
     for (int i = 0; i < H; i++) {
         int somme_pixels_fonces = 0;
         for (int j = 0; j < L; j++) {
-            somme_pixels_fonces += input_image.data[i * L + j]; // Formule 1D
+            somme_pixels_fonces += input_image.data[i * L + j];  
         }
 
         if (somme_pixels_fonces > 0 && en_cours_de_ligne == 0) {
@@ -107,7 +88,7 @@ Letters extract_letters(Image input_image)
         else if ((somme_pixels_fonces == 0 || i == H - 1) && en_cours_de_ligne == 1) {
             int y_end = (somme_pixels_fonces == 0) ? i - 1 : i;
             
-            // Ligne trouvée, parcourir les colonnes (Projection Verticale)
+            // Ligne trouv so parcour des colonnes 
             int x_start = 0;
             int en_cours_de_caractere = 0;
             
@@ -123,14 +104,13 @@ Letters extract_letters(Image input_image)
                 }
                 else if ((somme_pixels_colonne == 0 || j == L - 1) && en_cours_de_caractere == 1) {
                     int x_end = (somme_pixels_colonne == 0) ? j - 1 : j;
-                    
-                    // Étape C : Caractère trouvé !
+                    // char trouve 
                     printf("Caractere trouve : (x: %d->%d, y: %d->%d)\n", x_start, x_end, y_start, y_end);
 
-                    // Créer l'image 50x50 standardisée
+                    // create img 50x5O
                     Image nouvelle_lettre = standardiser_et_creer_image(input_image, x_start, x_end, y_start, y_end);
                     
-                    // L'ajouter au résultat (en vérifiant qu'on ne déborde pas)
+                    // add to result 
                     if (result.count < MAX_LETTERS_ESTIMATE) {
                         result.letters[result.count] = nouvelle_lettre;
                         result.count++;
