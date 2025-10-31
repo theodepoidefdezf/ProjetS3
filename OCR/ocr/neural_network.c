@@ -133,8 +133,7 @@ void backpropagation(double *entrees, double *attendus) {
 void entrainer() {
     // Jeu de données d'entraînement XOR : Entrée[2] et Sortie Attendue[1]
     double TRAINING_DATA[4][NB_ENTREES] = {{0.0, 0.0}, {0.0, 1.0}, {1.0, 0.0}, {1.0, 1.0}};
-    double TARGET_DATA[4][NB_SORTIES] = {{0.0}, {1.0}, {1.0}, {0.0}};
-
+    double TARGET_DATA[4][NB_SORTIES] = {{1.0}, {0.0}, {0.0}, {1.0}};
     for (int epoch = 0; epoch < NB_EPOCHS; epoch++) {
         double erreur_totale = 0.0;
         
@@ -163,7 +162,7 @@ void tester() {
     
     // Test des 4 cas XOR
     double test_cases[4][NB_ENTREES] = {{0.0, 0.0}, {0.0, 1.0}, {1.0, 0.0}, {1.0, 1.0}};
-    int expected[4] = {0, 1, 1, 0};
+    int expected[4] = {1,0,0,1};
 
     for (int i = 0; i < 4; i++) {
         forward_propagation(test_cases[i]);
