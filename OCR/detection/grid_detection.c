@@ -10,7 +10,7 @@ typedef struct {
 } BoundingBox;
 
 
-// Crée une nouvelle image à partir d'une 'BoundingBox'
+// craet nouvelle image with 'BoundingBox'
 Image create_sub_image(Image img, BoundingBox box) {
     Image sub_img;
     sub_img.width = box.x_end - box.x_start + 1;
@@ -72,7 +72,7 @@ BoundingBox find_first_blob(Image img) {
         }
     }
 
-    // 4. Trouver le X_END (dans la zone Y)
+    // Trouver le X_END dans la zone Y
     for (int j = box.x_start; j < L; j++) {
         int somme_col = 0;
         for (int i = box.y_start; i <= box.y_end; i++) somme_col += img.data[i * L + j];
@@ -116,7 +116,7 @@ Image standardiser_lettre(Image input_image, BoundingBox box) {
 
 
 
-// ISOLER LA GRILLE
+// isol grille 
 Image isolate_grid_image(Image img) {
     printf("Recherche de la zone 'Grille'...\n");
     BoundingBox grid_box = find_first_blob(img);
@@ -135,7 +135,7 @@ Image isolate_grid_image(Image img) {
 }
 
 
-//ISOLER LES MOTS
+//isole mot
 
 Image isolate_word_list_image(Image img) {
     printf("Recherche de la zone 'Mots'...\n");
@@ -147,7 +147,7 @@ Image isolate_word_list_image(Image img) {
 
 
 
-//EXTRAIRE LETTRES DE LA GRILLE
+//extrat letter from grille
 Letters extract_grid_letters(Image grid_image) {
     printf("--- Début de l'extraction des lettres de la GRILLE ---\n");
     Letters result;
