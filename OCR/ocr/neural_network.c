@@ -160,7 +160,6 @@ void entrainer() {
 void tester() {
     printf("\n--- Test du Modèle Entraîné ---\n");
     
-    // Test des 4 cas XOR
     double test_cases[4][NB_ENTREES] = {{0.0, 0.0}, {0.0, 1.0}, {1.0, 0.0}, {1.0, 1.0}};
     int expected[4] = {1,0,0,1};
 
