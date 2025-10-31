@@ -3,137 +3,116 @@
 #include <math.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
-#include "rotation.h"
 #include "../Utils/image.h"
+#include "rotation.h"
 
-
-static double en_radians(double degres)
+static double degres_vers_radians(double degres)
 {
     return degres * M_PI / 180.0;
 }
 
-static SDL_Surface *image_nouvelle_surface(int hauteur, int largeur)
+static SDL_Surface *creer_surface_vide(int hauteur, int largeur)
 {
     return SDL_CreateRGBSurfaceWithFormat(0, largeur, hauteur, 32, SDL_PIXELFORMAT_RGBA32);
 }
 
-static SDL_Surface *image_rotate(SDL_Surface *image, double angle)
+static SDL_Surface *faire_rotation(SDL_Surface *image, double angle)
 {
-    angle = en_radians(-angle);
+    angle = degres_vers_radians(-angle);
     double cosinus = cos(angle);
     double sinus = sin(angle);
 
-    int nouvelle_hauteur = abs((int)(-image->w * sinus)) + abs((int)(image->h * cosinus));
-    int nouvelle_largeur = abs((int)(image->w * cosinus)) + abs((int)(image->h * sinus));
+    int nouvelle_hauteur = fabs(-image->w * sinus) + fabs(image->h * cosinus);
+    int nouvelle_largeur = fabs(image->w * cosinus) + fabs(image->h * sinus);
 
-    SDL_Surface *image_sortie = image_new(nouvelle_hauteur, nouvelle_largeur);
+    SDL_Surface *resultat = image_new(nouvelle_hauteur, nouvelle_largeur);
 
-    for (int ligne = 0; ligne < nouvelle_hauteur; ligne++)
+    for (int y = 0; y < nouvelle_hauteur; y++)
     {
-        for (int colonne = 0; colonne < nouvelle_largeur; colonne++)
+        for (int x = 0; x < nouvelle_largeur; x++)
         {
-            int nouvelle_ligne = (int)((ligne - nouvelle_hauteur / 2) * cosinus - (colonne - nouvelle_largeur / 2) * sinus);
-            int nouvelle_colonne = (int)((colonne - nouvelle_largeur / 2) * cosinus + (ligne - nouvelle_hauteur / 2) * sinus);
+            int ny = (int)((y - nouvelle_hauteur / 2) * cosinus - (x - nouvelle_largeur / 2) * sinus);
+            int nx = (int)((x - nouvelle_largeur / 2) * cosinus + (y - nouvelle_hauteur / 2) * sinus);
 
-            nouvelle_ligne += image->h / 2;
-            nouvelle_colonne += image->w / 2;
+            ny += image->h / 2;
+            nx += image->w / 2;
 
-            if (nouvelle_ligne >= 0 && nouvelle_ligne < image->h &&
-                nouvelle_colonne >= 0 && nouvelle_colonne < image->w)
-            {
-                image_set_pixel(image_sortie, ligne, colonne, image_get_pixel(image, nouvelle_ligne, nouvelle_colonne));
-            }
+            if (ny >= 0 && ny < image->h && nx >= 0 && nx < image->w)
+                image_set_pixel(resultat, y, x, image_get_pixel(image, ny, nx));
             else
-            {
-                image_set_pixel(image_sortie, ligne, colonne, SDL_MapRGB(image_sortie->format, 255, 255, 255));
-            }
+                image_set_pixel(resultat, y, x, SDL_MapRGB(resultat->format, 255, 255, 255));
         }
     }
-
-    return image_sortie;
+    return resultat;
 }
 
 
-
-
-// Rotation automatique 
-
-
-static int compute_raycast_sum(SDL_Surface *image, int hauteur, double angle)
+static int somme_projection(SDL_Surface *image, int h, double angle)
 {
-    angle = en_radians(angle);
+    angle = degres_vers_radians(angle);
     int rayon = fabs(cos(angle) * image->w);
-    int largeur_depart = (image->w - rayon) / 2;
+    int w_depart = (image->w - rayon) / 2;
 
     int somme = 0;
-    for (int largeur = largeur_depart; largeur < largeur_depart + rayon; largeur++)
+    for (int w = w_depart; w < w_depart + rayon; w++)
     {
-        int nouvelle_hauteur = hauteur + tan(angle) * largeur;
-        if (nouvelle_hauteur >= 0 && nouvelle_hauteur < image->h && !is_white_pixel(image, nouvelle_hauteur, largeur))
+        int nh = h + tan(angle) * w;
+        if (nh >= 0 && nh < image->h && !is_white_pixel(image, nh, w))
             somme++;
     }
     return somme;
 }
 
-static double compute_variance(SDL_Surface *image, double angle)
+static double variance_projection(SDL_Surface *image, double angle)
 {
-    int hauteur_depart = image->h / 8;
-    int hauteur_longueur = (7 * image->h) / 8;
-    double coefficient = image->w / 15.0;
+    int h_debut = image->h / 8;
+    int h_long = (7 * image->h) / 8;
+    double facteur = image->w / 15.0;
 
     double somme = 0.0, somme_carre = 0.0;
-    for (int hauteur = hauteur_depart; hauteur < hauteur_depart + hauteur_longueur; hauteur += 4)
+    for (int h = h_debut; h < h_debut + h_long; h += 4)
     {
-        int valeur = compute_raycast_sum(image, hauteur, angle);
-        somme += valeur - coefficient;
-        somme_carre += (valeur - coefficient) * (valeur - coefficient);
+        int s = somme_projection(image, h, angle);
+        somme += s - facteur;
+        somme_carre += (s - facteur) * (s - facteur);
     }
-    return (somme_carre - (somme * somme) / hauteur_longueur) / (hauteur_longueur - 1);
+    return (somme_carre - (somme * somme) / h_long) / (h_long - 1);
 }
 
-
-
-static double find_skew_angle(SDL_Surface *image,
-                              double borne_inferieure, double borne_superieure,
-                              double precision)
+static double trouver_angle_inclinaison(SDL_Surface *image,
+                                        double borne_inf, double borne_sup,
+                                        double precision)
 {
-    double angle_inclinaison = 0.0;
+    double meilleur_angle = 0.0;
     double variance_max = 0.0;
 
-    for (double angle = borne_inferieure; angle <= borne_superieure; angle += precision)
+    for (double angle = borne_inf; angle <= borne_sup; angle += precision)
     {
-        double variance = compute_variance(image, angle);
+        double variance = variance_projection(image, angle);
         if (variance > variance_max)
         {
             variance_max = variance;
-            angle_inclinaison = angle;
+            meilleur_angle = angle;
         }
     }
 
-    return angle_inclinaison;
+    return meilleur_angle;
 }
 
-SDL_Surface *image_deskew(SDL_Surface *image)
+SDL_Surface *correction_inclinaison(SDL_Surface *image)
 {
-    double angle_inclinaison = find_skew_angle(image, -15.0, +15.0, 1.0);
-    angle_inclinaison = find_skew_angle(image, angle_inclinaison - 3.0, angle_inclinaison + 3.0, 0.1);
+    double angle = trouver_angle_inclinaison(image, -15.0, +15.0, 1.0);
+    angle = trouver_angle_inclinaison(image, angle - 3.0, angle + 3.0, 0.1);
 
-    SDL_Surface *image_corrigee = image_rotate(image, angle_inclinaison);
-    printf("Inclinaison détectée automatiquement : %.2f°\n", angle_inclinaison);
+    SDL_Surface *redressee = faire_rotation(image, angle);
+    printf("Inclinaison détectée automatiquement : %.2f°\n", angle);
 
-    SDL_SaveBMP(image_corrigee, "../output/image_auto_rotation.bmp");
-    printf("Image sauvegardée : ../output/image_auto_rotation.bmp\n");
+    SDL_SaveBMP(redressee, "../output/image_rotation_auto.bmp");
+    printf("Image corrigée sauvegardée : ../output/image_rotation_auto.bmp\n");
 
-    return image_corrigee;
+    return redressee;
 }
 
-
-
-
-
-
-
-// Rotation manuelle par saisie d'un angle
 
 void manual_rotation(const char *chemin_image)
 {
@@ -145,7 +124,7 @@ void manual_rotation(const char *chemin_image)
     }
 
     double angle;
-    printf("Entrez l’angle de rotation (en degrés, positif = sens horaire) : ");
+    printf("Entrez l’angle de rotation (°, positif = sens horaire) : ");
     if (scanf("%lf", &angle) != 1)
     {
         fprintf(stderr, "Entrée invalide.\n");
@@ -153,12 +132,12 @@ void manual_rotation(const char *chemin_image)
         return;
     }
 
-    SDL_Surface *image_tournee = image_rotate(image, angle);
-    SDL_SaveBMP(image_tournee, "../output/image_rotation_manuelle.bmp");
+    SDL_Surface *tournee = faire_rotation(image, angle);
+    SDL_SaveBMP(tournee, "../output/image_rotation_manuelle.bmp");
 
     printf("Rotation manuelle appliquée : %.2f°\n", angle);
     printf("Image sauvegardée : ../output/image_rotation_manuelle.bmp\n");
 
-    SDL_FreeSurface(image_tournee);
+    SDL_FreeSurface(tournee);
     SDL_FreeSurface(image);
 }

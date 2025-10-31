@@ -3,7 +3,7 @@
 
 #include <SDL2/SDL.h>
 
-SDL_Surface *image_deskew(SDL_Surface *img);
+SDL_Surface *correction_inclinaison(SDL_Surface *img);
 
 void manual_rotation(const char *image_path);
 

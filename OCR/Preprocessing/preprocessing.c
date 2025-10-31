@@ -66,7 +66,7 @@ void preprocessing(const char *image_path)
     conversion_bina(binarized);
     take(binarized, PATH_IMG_BINARIZE);
 
-    SDL_Surface *auto_rotated = image_deskew(binarized);
+    SDL_Surface *auto_rotated = correction_inclinaison(binarized);
     take(auto_rotated, PATH_IMG_AUTO_ROTATION);
 
     SDL_Surface *noise_auto = reduire_bruit(auto_rotated);
