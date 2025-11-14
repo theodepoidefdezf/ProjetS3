@@ -3,6 +3,11 @@
 #include <math.h>
 #include <time.h>
 
+/*
+Créer un fichier texte qui contient la valeur des poids entre chaque neurones
+a chaque couche.
+*/
+
 // --- Paramètres du Réseau ---
 #define NB_ENTREES 2
 #define NB_NEURONES_CACHES 2
