@@ -1,3 +1,4 @@
 .vs/
 OCR/.vs/
-OCR/display/.vs/*.DS_Store
+OCR/display/.vs/
+*.DS_Store
