@@ -2,7 +2,8 @@ CC = gcc
 
 TARGET = preprocessing_test
 
-UTILS_DIR = ../UTILS
+UTILS_DIR = ../Utils
+
 
 SRCS = \
 	main.c \
