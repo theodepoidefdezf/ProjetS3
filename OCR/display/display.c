@@ -132,6 +132,17 @@ static void show_info_dialog(GtkWindow *parent, const char *message){
     gtk_widget_destroy(dlg);
 }
 
+static void open_folder(AppWidgets *aw, const char *folder){
+    GtkWidget *dialog = gtk_file_chooser_dialog_new("Ouvrir un fichier", GTK_WINDOW(aw->window),
+                                                    GTK_FILE_CHOOSER_ACTION_OPEN,
+                                                    "_Annuler", GTK_RESPONSE_CANCEL,
+                                                    "_Ouvrir", GTK_RESPONSE_ACCEPT,
+                                                    NULL);
+    gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), folder);
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+}
+
 static void on_level_button_clicked(GtkButton *btn, gpointer user_data){
     AppWidgets *aw = (AppWidgets*)user_data;
     const char *level = gtk_button_get_label(btn);
@@ -181,7 +192,6 @@ static void on_save_button_clicked(GtkButton *btn, gpointer user_data){
 static gboolean on_run_button_press(GtkWidget *widget, GdkEventButton *event, gpointer user_data){
     AppWidgets *aw = (AppWidgets*)user_data;
     if(!aw->pipeline_launched){
-        g_print("Pipeline complet lancé !\n");
         aw->pipeline_launched = TRUE;
         if(aw->orig_pixbuf){
             if(aw->display_pixbuf) g_object_unref(aw->display_pixbuf);
@@ -219,25 +229,22 @@ static void on_reset_rotation_clicked(GtkButton *btn, gpointer user_data){
 
 static void on_preproc_clicked(GtkButton *btn, gpointer user_data){
     AppWidgets *aw = (AppWidgets*)user_data;
-    if(!aw->orig_pixbuf) return;
-    if(aw->display_pixbuf) g_object_unref(aw->display_pixbuf);
-    aw->display_pixbuf = gdk_pixbuf_copy(aw->orig_pixbuf);
-    gtk_widget_queue_draw(aw->image_area);
+    open_folder(aw, "../output");
 }
 
 static void on_decoupage_clicked(GtkButton *btn, gpointer user_data){
     AppWidgets *aw = (AppWidgets*)user_data;
-    show_info_dialog(GTK_WINDOW(aw->window), "Découpage : affichage des cases/lettres (simulation).");
+    open_folder(aw, "../output/test");
 }
 
 static void on_detection_clicked(GtkButton *btn, gpointer user_data){
     AppWidgets *aw = (AppWidgets*)user_data;
-    show_info_dialog(GTK_WINDOW(aw->window), "Détection : fichiers txt de la grille et mots.");
+    open_folder(aw, "../solver");
 }
 
 static void on_solver_clicked(GtkButton *btn, gpointer user_data){
     AppWidgets *aw = (AppWidgets*)user_data;
-    show_info_dialog(GTK_WINDOW(aw->window), "Solver : coordonnées des mots trouvés (simulation).");
+    open_folder(aw, "../Solver");
 }
 
 int init_gui(int argc, char **argv, AppWidgets **out_widgets){
@@ -254,8 +261,7 @@ int init_gui(int argc, char **argv, AppWidgets **out_widgets){
         "#sidebar { background: #f3f1ee; border: 1px solid #ccc; padding: 12px; }"
         "#runbtn { background: #5a7db0; color: white; padding: 10px 20px; border-radius: 6px; }";
     gtk_css_provider_load_from_data(css, css_data, -1, NULL);
-    gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css),
-                                              GTK_STYLE_PROVIDER_PRIORITY_USER);
+    gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css), GTK_STYLE_PROVIDER_PRIORITY_USER);
 
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_container_add(GTK_CONTAINER(aw->window), vbox);
@@ -279,7 +285,7 @@ int init_gui(int argc, char **argv, AppWidgets **out_widgets){
     GtkWidget *pipeline_frame = gtk_frame_new("Pipeline du Projet");
     GtkWidget *pipeline_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
     gtk_container_add(GTK_CONTAINER(pipeline_frame), pipeline_box);
-    const char *steps = "1. Choix du niveau\n2. Prétraitement\n3. Découpage\n4. Détection (Réseau de neurones)\n5. Recherche (Solver)\n6. Affichage";
+    const char *steps = "1. Choix du niveau\n2. Prétraitement\n3. Découpage\n4. Réseau de neurones\n5. Recherche (Solver)\n6. Affichage";
     GtkWidget *steps_label = gtk_label_new(steps);
     gtk_label_set_xalign(GTK_LABEL(steps_label), 0.0);
     gtk_box_pack_start(GTK_BOX(pipeline_box), steps_label, FALSE, FALSE, 4);
@@ -329,7 +335,7 @@ int init_gui(int argc, char **argv, AppWidgets **out_widgets){
 
     aw->preproc_btn = gtk_button_new_with_label("Prétraitement");
     aw->decoupage_btn = gtk_button_new_with_label("Découpage");
-    aw->detection_btn = gtk_button_new_with_label("Détection");
+    aw->detection_btn = gtk_button_new_with_label("Réseau de neurones");
     aw->solver_btn = gtk_button_new_with_label("Solver");
 
     gtk_box_pack_start(GTK_BOX(right_col), aw->preproc_btn, FALSE, FALSE, 4);
