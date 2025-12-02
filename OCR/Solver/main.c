@@ -38,16 +38,13 @@ int main(int argc, char *argv[])
 
     while (fgets(buffer, sizeof(buffer), fm))
     {
-        // Nettoyage fin de ligne
         int len = strlen(buffer);
         while (len > 0 && (buffer[len - 1] == '\n' || buffer[len - 1] == '\r'))
             buffer[--len] = '\0';
 
-        // Mot vide → ignorer
         if (len == 0)
             continue;
 
-        // Transformer en majuscules
         char mot[MAX_MOT];
         int i;
         for (i = 0; i < MAX_MOT - 1 && buffer[i]; i++)
