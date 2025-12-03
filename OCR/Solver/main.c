@@ -34,6 +34,14 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    FILE *fc = fopen("coordonnees", "w");
+    if (!fc)
+    {
+        fprintf(stderr, "Erreur: impossible de créer le fichier coordonnees.txt\n");
+        fclose(fm);
+        return 1;
+    }
+
     char buffer[MAX_MOT];
 
     while (fgets(buffer, sizeof(buffer), fm))
@@ -60,13 +68,21 @@ int main(int argc, char *argv[])
                    mot,
                    resultat.start_colonne, resultat.start_ligne,
                    resultat.end_colonne, resultat.end_ligne);
+
+            fprintf(fc, "%s: (%d,%d)(%d,%d)\n",
+                    mot,
+                    resultat.start_colonne, resultat.start_ligne,
+                    resultat.end_colonne, resultat.end_ligne);
         }
         else
         {
             printf("%s: Not Found\n", mot);
+            fprintf(fc, "%s: Not Found\n", mot);
         }
     }
 
     fclose(fm);
+    fclose(fc);
+
     return 0;
 }

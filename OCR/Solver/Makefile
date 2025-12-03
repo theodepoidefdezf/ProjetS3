@@ -15,7 +15,6 @@ main.o: main.c solver.h
 	$(CC) $(CFLAGS) -c main.c
 
 clean:
-	rm -f $(OBJ) $(TARGET)
+	rm -f $(OBJ) $(TARGET) coordonnees
 
 rebuild: clean all
-
