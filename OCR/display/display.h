@@ -13,15 +13,12 @@ typedef struct {
     GtkWidget *load_btn;
     GtkWidget *save_btn;
     GtkWidget *rotation_scale;
-
     GtkWidget *preproc_btn;
     GtkWidget *decoupage_btn;
     GtkWidget *detection_btn;
     GtkWidget *solver_btn;
-
     GtkWidget *preproc_check;
     GtkWidget *info_label;
-
     GdkPixbuf *orig_pixbuf;
     GdkPixbuf *display_pixbuf;
     double rotation_angle;

@@ -1,4 +1,5 @@
 ﻿#include "display.h"
+#include "pipeline_run.h"
 #include <cairo.h>
 #include <math.h>
 
@@ -23,33 +24,25 @@ void app_widgets_free(AppWidgets* aw){
 
 static GdkPixbuf* rotate_pixbuf(GdkPixbuf *src, double degrees){
     if(!src) return NULL;
-
     int w = gdk_pixbuf_get_width(src);
     int h = gdk_pixbuf_get_height(src);
-
     double rad = degrees * G_PI / 180.0;
     double ca = fabs(cos(rad));
     double sa = fabs(sin(rad));
     int nw = (int)ceil(w * ca + h * sa);
     int nh = (int)ceil(w * sa + h * ca);
-
     cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, nw, nh);
     cairo_t *cr = cairo_create(surface);
-
     cairo_set_source_rgba(cr, 0,0,0,0);
     cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
     cairo_paint(cr);
     cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
-
     cairo_translate(cr, nw/2.0, nh/2.0);
     cairo_rotate(cr, rad);
     cairo_translate(cr, -w/2.0, -h/2.0);
-
     gdk_cairo_set_source_pixbuf(cr, src, 0, 0);
     cairo_paint(cr);
-
     GdkPixbuf *res = gdk_pixbuf_get_from_surface(surface, 0, 0, nw, nh);
-
     cairo_destroy(cr);
     cairo_surface_destroy(surface);
     return res;
@@ -58,26 +51,20 @@ static GdkPixbuf* rotate_pixbuf(GdkPixbuf *src, double degrees){
 static void update_display_pixbuf(AppWidgets *aw){
     if(aw->display_pixbuf){ g_object_unref(aw->display_pixbuf); aw->display_pixbuf = NULL; }
     if(!aw->orig_pixbuf) return;
-
     GdkPixbuf *rot = rotate_pixbuf(aw->orig_pixbuf, aw->rotation_angle);
     if(!rot) return;
-
     GtkAllocation alloc;
     gtk_widget_get_allocation(aw->image_area, &alloc);
     int area_w = alloc.width > 10 ? alloc.width : 600;
     int area_h = alloc.height > 10 ? alloc.height : 600;
-
     int w = gdk_pixbuf_get_width(rot);
     int h = gdk_pixbuf_get_height(rot);
     double ratio = fmin((double)area_w / w, (double)area_h / h);
     if(ratio > 1.0) ratio = 1.0;
-
     int new_w = (int)(w * ratio);
     int new_h = (int)(h * ratio);
-
     aw->display_pixbuf = gdk_pixbuf_scale_simple(rot, new_w, new_h, GDK_INTERP_BILINEAR);
     g_object_unref(rot);
-
     gtk_widget_queue_draw(aw->image_area);
 }
 
@@ -118,7 +105,6 @@ static gboolean load_image_from_file(AppWidgets *aw, const char *path){
     aw->orig_pixbuf = pix;
     aw->rotation_angle = 0.0;
     update_display_pixbuf(aw);
-
     char info[256];
     snprintf(info, sizeof(info), "Size: %dx%d px\nRotation: %.1f°\nFormat: PNG/JPEG",
              gdk_pixbuf_get_width(pix), gdk_pixbuf_get_height(pix), aw->rotation_angle);
@@ -147,18 +133,15 @@ static void on_level_button_clicked(GtkButton *btn, gpointer user_data){
     AppWidgets *aw = (AppWidgets*)user_data;
     const char *level = gtk_button_get_label(btn);
     char folder[512];
-
     if(g_strcmp0(level, "Niveau 1") == 0) snprintf(folder, sizeof(folder), "../Images/Niveau1");
     else if(g_strcmp0(level, "Niveau 2") == 0) snprintf(folder, sizeof(folder), "../Images/Niveau2");
     else snprintf(folder, sizeof(folder), "../Images/Niveau3");
-
     GtkWidget *dialog = gtk_file_chooser_dialog_new("Choisir une image", GTK_WINDOW(aw->window),
                                                     GTK_FILE_CHOOSER_ACTION_OPEN,
                                                     "_Annuler", GTK_RESPONSE_CANCEL,
                                                     "_Ouvrir", GTK_RESPONSE_ACCEPT,
                                                     NULL);
     gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), folder);
-
     if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT){
         char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
         load_image_from_file(aw, filename);
@@ -197,6 +180,7 @@ static gboolean on_run_button_press(GtkWidget *widget, GdkEventButton *event, gp
             if(aw->display_pixbuf) g_object_unref(aw->display_pixbuf);
             aw->display_pixbuf = gdk_pixbuf_copy(aw->orig_pixbuf);
             gtk_widget_queue_draw(aw->image_area);
+            run_pipeline("../Images/Niveau1/level_1_image_1.png");
         }
     }
     return FALSE;
@@ -250,11 +234,9 @@ static void on_solver_clicked(GtkButton *btn, gpointer user_data){
 int init_gui(int argc, char **argv, AppWidgets **out_widgets){
     gtk_init(&argc, &argv);
     AppWidgets *aw = app_widgets_new();
-
     aw->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(aw->window), "OCR Word Search Solver - EPITA S3");
     gtk_window_set_default_size(GTK_WINDOW(aw->window), 1200, 800);
-
     GtkCssProvider *css = gtk_css_provider_new();
     const gchar *css_data =
         "#header { background: linear-gradient(#2d5780,#6ea1d6); color: white; padding: 10px; }"
@@ -262,26 +244,21 @@ int init_gui(int argc, char **argv, AppWidgets **out_widgets){
         "#runbtn { background: #5a7db0; color: white; padding: 10px 20px; border-radius: 6px; }";
     gtk_css_provider_load_from_data(css, css_data, -1, NULL);
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css), GTK_STYLE_PROVIDER_PRIORITY_USER);
-
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_container_add(GTK_CONTAINER(aw->window), vbox);
-
     GtkWidget *header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     gtk_widget_set_name(header, "header");
     GtkWidget *title = gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(title), "<span size='x-large'><b>OCR Word Search Solver</b></span>");
     gtk_box_pack_start(GTK_BOX(header), title, FALSE, FALSE, 10);
     gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, FALSE, 0);
-
     GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
     gtk_container_set_border_width(GTK_CONTAINER(hbox), 10);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
-
     GtkWidget *sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
     gtk_widget_set_size_request(sidebar, 300, -1);
     gtk_widget_set_name(sidebar, "sidebar");
     gtk_box_pack_start(GTK_BOX(hbox), sidebar, FALSE, FALSE, 0);
-
     GtkWidget *pipeline_frame = gtk_frame_new("Pipeline du Projet");
     GtkWidget *pipeline_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
     gtk_container_add(GTK_CONTAINER(pipeline_frame), pipeline_box);
@@ -290,19 +267,16 @@ int init_gui(int argc, char **argv, AppWidgets **out_widgets){
     gtk_label_set_xalign(GTK_LABEL(steps_label), 0.0);
     gtk_box_pack_start(GTK_BOX(pipeline_box), steps_label, FALSE, FALSE, 4);
     gtk_box_pack_start(GTK_BOX(sidebar), pipeline_frame, FALSE, FALSE, 0);
-
     aw->level1_btn = gtk_button_new_with_label("Niveau 1");
     aw->level2_btn = gtk_button_new_with_label("Niveau 2");
     aw->level3_btn = gtk_button_new_with_label("Niveau 3");
     gtk_box_pack_start(GTK_BOX(sidebar), aw->level1_btn, FALSE, FALSE, 2);
     gtk_box_pack_start(GTK_BOX(sidebar), aw->level2_btn, FALSE, FALSE, 2);
     gtk_box_pack_start(GTK_BOX(sidebar), aw->level3_btn, FALSE, FALSE, 2);
-
     aw->load_btn = gtk_button_new_with_label("Charger une image");
     gtk_box_pack_start(GTK_BOX(sidebar), aw->load_btn, FALSE, FALSE, 6);
     aw->save_btn = gtk_button_new_with_label("Sauvegarder l'image");
     gtk_box_pack_start(GTK_BOX(sidebar), aw->save_btn, FALSE, FALSE, 8);
-
     GtkWidget *rot_label = gtk_label_new("Angle de rotation (degrés)");
     gtk_box_pack_start(GTK_BOX(sidebar), rot_label, FALSE, FALSE, 2);
     aw->rotation_scale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, -180, 180, 1);
@@ -311,11 +285,9 @@ int init_gui(int argc, char **argv, AppWidgets **out_widgets){
     gtk_box_pack_start(GTK_BOX(sidebar), aw->rotation_scale, FALSE, FALSE, 2);
     GtkWidget *reset_rot = gtk_button_new_with_label("Réinitialiser la Rotation");
     gtk_box_pack_start(GTK_BOX(sidebar), reset_rot, FALSE, FALSE, 2);
-
     aw->info_label = gtk_label_new("Size: -\nRotation: 0°\nFormat: -");
     gtk_label_set_xalign(GTK_LABEL(aw->info_label), 0.0);
     gtk_box_pack_end(GTK_BOX(sidebar), aw->info_label, FALSE, FALSE, 4);
-
     aw->image_area = gtk_drawing_area_new();
     gtk_widget_set_size_request(aw->image_area, 700, 600);
     GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
@@ -323,48 +295,38 @@ int init_gui(int argc, char **argv, AppWidgets **out_widgets){
     gtk_widget_set_vexpand(scrolled, TRUE);
     gtk_container_add(GTK_CONTAINER(scrolled), aw->image_area);
     gtk_box_pack_start(GTK_BOX(hbox), scrolled, TRUE, TRUE, 0);
-
     GtkWidget *right_col = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
     gtk_widget_set_size_request(right_col, 200, -1);
     gtk_box_pack_start(GTK_BOX(hbox), right_col, FALSE, FALSE, 0);
-
     aw->run_btn = gtk_button_new_with_label("Run");
     gtk_widget_set_name(aw->run_btn, "runbtn");
     gtk_widget_set_size_request(aw->run_btn, 120, 40);
     gtk_box_pack_start(GTK_BOX(right_col), aw->run_btn, FALSE, FALSE, 20);
-
     aw->preproc_btn = gtk_button_new_with_label("Prétraitement");
     aw->decoupage_btn = gtk_button_new_with_label("Découpage");
     aw->detection_btn = gtk_button_new_with_label("Réseau de neurones");
     aw->solver_btn = gtk_button_new_with_label("Solver");
-
     gtk_box_pack_start(GTK_BOX(right_col), aw->preproc_btn, FALSE, FALSE, 4);
     gtk_box_pack_start(GTK_BOX(right_col), aw->decoupage_btn, FALSE, FALSE, 4);
     gtk_box_pack_start(GTK_BOX(right_col), aw->detection_btn, FALSE, FALSE, 4);
     gtk_box_pack_start(GTK_BOX(right_col), aw->solver_btn, FALSE, FALSE, 4);
-
     GtkWidget *status = gtk_statusbar_new();
     gtk_box_pack_end(GTK_BOX(vbox), status, FALSE, TRUE, 0);
-
     g_signal_connect(aw->window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     g_signal_connect(aw->image_area, "draw", G_CALLBACK(on_draw_image), aw);
-
     g_signal_connect(aw->load_btn, "clicked", G_CALLBACK(on_level_button_clicked), aw);
     g_signal_connect(aw->save_btn, "clicked", G_CALLBACK(on_save_button_clicked), aw);
     g_signal_connect(aw->rotation_scale, "value-changed", G_CALLBACK(on_rotation_changed), aw);
     g_signal_connect(reset_rot, "clicked", G_CALLBACK(on_reset_rotation_clicked), aw);
-
     g_signal_connect(aw->run_btn, "button-press-event", G_CALLBACK(on_run_button_press), aw);
     g_signal_connect(aw->run_btn, "button-release-event", G_CALLBACK(on_run_button_release), aw);
     g_signal_connect(aw->level1_btn, "clicked", G_CALLBACK(on_level_button_clicked), aw);
     g_signal_connect(aw->level2_btn, "clicked", G_CALLBACK(on_level_button_clicked), aw);
     g_signal_connect(aw->level3_btn, "clicked", G_CALLBACK(on_level_button_clicked), aw);
-
     g_signal_connect(aw->preproc_btn, "clicked", G_CALLBACK(on_preproc_clicked), aw);
     g_signal_connect(aw->decoupage_btn, "clicked", G_CALLBACK(on_decoupage_clicked), aw);
     g_signal_connect(aw->detection_btn, "clicked", G_CALLBACK(on_detection_clicked), aw);
     g_signal_connect(aw->solver_btn, "clicked", G_CALLBACK(on_solver_clicked), aw);
-
     gtk_widget_show_all(aw->window);
     *out_widgets = aw;
     return 0;
