@@ -1,17 +1,24 @@
 CC = gcc
-CFLAGS = -Wall -g `pkg-config --cflags gtk+-3.0 gdk-pixbuf-2.0`
-LIBS = `pkg-config --libs gtk+-3.0 gdk-pixbuf-2.0` -lm
+CFLAGS = -Wall -Wextra -g `pkg-config --cflags gtk+-3.0`
+LDFLAGS = `pkg-config --libs gtk+-3.0`
 
-all: display
+SRCS = main.c display.c pipeline_run.c
+OBJS = $(SRCS:.c=.o)
 
-display: main.o display.o
-	$(CC) $(CFLAGS) -o display main.o display.o $(LIBS)
+TARGET = display
 
-main.o: main.c display.h
-	$(CC) $(CFLAGS) -c main.c
+all: $(TARGET)
 
-display.o: display.c display.h
-	$(CC) $(CFLAGS) -c display.c
+$(TARGET): $(OBJS)
+	$(CC) $(OBJS) -o $(TARGET) $(LDFLAGS) -lm
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f *.o display
+	rm -f $(OBJS) $(TARGET)
+
+run: all
+	./$(TARGET)
+
+.PHONY: all clean run
