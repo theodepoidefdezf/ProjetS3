@@ -1,4 +1,36 @@
 #include "decoupe.h"
+#include <dirent.h>
+#include <unistd.h>
+
+// Supprime récursivement le contenu d'un dossier (mais garde le dossier)
+static void clean_directory(const char *dir_path) {
+    DIR *dir = opendir(dir_path);
+    if (!dir) return;
+    
+    struct dirent *entry;
+    char path[1024];
+    
+    while ((entry = readdir(dir)) != NULL) {
+        // Ignorer . et ..
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+        
+        snprintf(path, sizeof(path), "%s/%s", dir_path, entry->d_name);
+        
+        struct stat st;
+        if (stat(path, &st) == 0) {
+            if (S_ISDIR(st.st_mode)) {
+                // Récursion pour les sous-dossiers
+                clean_directory(path);
+                rmdir(path);
+            } else {
+                // Supprimer le fichier
+                unlink(path);
+            }
+        }
+    }
+    closedir(dir);
+}
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -17,6 +49,12 @@ int main(int argc, char *argv[]) {
     snprintf(dir_blocks, sizeof(dir_blocks), "%s/1_blocks", base_dir);
     snprintf(dir_cells, sizeof(dir_cells), "%s/2_cells", base_dir);
     snprintf(dir_words, sizeof(dir_words), "%s/3_words", base_dir);
+    
+    // Nettoyer les dossiers existants avant de commencer
+    clean_directory(dir_debug);
+    clean_directory(dir_blocks);
+    clean_directory(dir_cells);
+    clean_directory(dir_words);
     
     create_dir_recursively(dir_debug);
     create_dir_recursively(dir_blocks);
