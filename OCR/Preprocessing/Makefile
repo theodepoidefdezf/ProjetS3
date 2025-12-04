@@ -35,13 +35,13 @@ run: all
 	@echo "Exécution du programme..."
 	@./$(TARGET)
 
-clean:
+fclean:
 	@echo " Suppression des fichiers objets..."
 	rm -f $(OBJS)
 
-fclean: clean
+clean: clean
 	@echo "Suppression de l'exécutable..."
-	rm -f $(TARGET)
+	rm -f $(OBJS)   $(TARGET)
 
 re: fclean all
 
