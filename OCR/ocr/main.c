@@ -1045,17 +1045,17 @@ char predict(float img[IMG_SIZE][IMG_SIZE]) {
     return 'A' + pred;
 }
 
-void test_image(const char *image_path) {
+char test_image(const char *image_path) {
     float img[IMG_SIZE][IMG_SIZE];
     
     if (load_network("model.txt") != 0) {
         printf("Erreur: impossible de charger le modèle. Entraînez d'abord avec l'option 1.\n");
-        return;
+        return '0';
     }
     
     if (read_pbm(image_path, img) != 0) {
         printf("Erreur: impossible de lire l'image %s\n", image_path);
-        return;
+        return '0';
     }
     
     char result = predict(img);
@@ -1081,6 +1081,133 @@ void test_image(const char *image_path) {
         }
         printf("  %c: %.2f%%\n", 'A' + sorted[i], cache.softmax_out[sorted[i]] * 100.0f);
     }
+    return result;
+}
+
+
+int file_exists(const char *path) {
+    FILE *f = fopen(path, "r");
+    if (f) {
+        fclose(f);
+        return 1;
+    }
+    return 0;
+}
+
+int process_cells(const char *base_path, const char *OUTPUT_PATH) {
+    char output_path[512];
+    sprintf(output_path, "%s/grid.txt", OUTPUT_PATH);
+    FILE *output = fopen(output_path, "w");
+    if (!output) {
+        printf("Erreur: Impossible de créer le fichier de sortie %s\n", output_path);
+        return 1;
+    }
+
+    int line_index = 0;
+    char line_path[512];
+    char cell_path[512];
+
+    // Parcourir les dossiers line_00, line_01, ...
+    while (1) {
+        // Construire le chemin du dossier line_XX
+        sprintf(line_path, "%s/2_cells/line_%02d", base_path, line_index);
+
+        // Vérifier si le dossier line existe en testant si cell_00.pbm existe
+        sprintf(cell_path, "%s/cell_00.pbm", line_path);
+        if (!file_exists(cell_path)) {
+            // Le dossier line n'existe pas ou est vide, on a fini
+            break;
+        }
+
+        int cell_index = 0;
+
+        // Parcourir les fichiers cell_00.pbm, cell_01.pbm, ...
+        while (1) {
+            // Construire le chemin du fichier cell_XX.pbm
+            sprintf(cell_path, "%s/cell_%02d.pbm", line_path, cell_index);
+
+            // Vérifier si le fichier cell existe
+            if (!file_exists(cell_path)) {
+                // Plus de cellules dans cette ligne
+                break;
+            }
+
+            // Analyser l'image et récupérer le caractère
+            char c = test_image(cell_path);
+
+            // Écrire le caractère dans le fichier de sortie
+            fputc(c, output);
+
+            cell_index++;
+        }
+
+        // Saut de ligne après chaque dossier line
+        fputc('\n', output);
+
+        line_index++;
+    }
+
+    fclose(output);
+    printf("Traitement terminé. Résultat écrit dans %s\n", OUTPUT_PATH);
+    printf("Nombre de lignes traitées: %d\n", line_index);
+    
+    char output_path2[512];
+    sprintf(output_path2, "%s/word.txt", OUTPUT_PATH);
+    FILE *output2 = fopen(output_path2, "w");
+    if (!output2) {
+        printf("Erreur: Impossible de créer le fichier de sortie %s\n", output_path2);
+        return 1;
+    }
+
+    int word_index = 0;
+    char word_path[512];
+    char char_path[512];
+
+    // Parcourir les dossiers word_00, word_01, ...
+    while (1) {
+        // Construire le chemin du dossier word_XX
+        sprintf(word_path, "%s/3_words/word_%02d", base_path, word_index);
+
+        // Vérifier si le dossier word existe en testant si char_00.pbm existe
+        sprintf(char_path, "%s/char_00.pbm", word_path);
+        if (!file_exists(char_path)) {
+            // Le dossier word n'existe pas ou est vide, on a fini
+            break;
+        }
+
+        int char_index = 0;
+
+        // Parcourir les fichiers char_00.pbm, char_01.pbm, ...
+        while (1) {
+            // Construire le chemin du fichier char_XX.pbm
+            sprintf(char_path, "%s/char_%02d.pbm", word_path, char_index);
+
+            // Vérifier si le fichier char existe
+            if (!file_exists(char_path)) {
+                // Plus de caractères dans ce mot
+                break;
+            }
+
+            // Analyser l'image et récupérer le caractère
+            char c = test_image(char_path);
+
+            // Écrire le caractère dans le fichier de sortie
+            fputc(c, output2);
+
+            char_index++;
+        }
+
+        // Espace après chaque mot (ou \n si tu préfères un mot par ligne)
+        fputc('\n', output2);
+
+        word_index++;
+    }
+
+    fclose(output2);
+    printf("Traitement terminé. Résultat écrit dans %s\n", output_path2);
+    printf("Nombre de mots traités: %d\n", word_index);
+    
+    return 0;
 }
 
 /* ============================================================
@@ -1092,6 +1219,7 @@ int main(int argc, char *argv[]) {
         printf("Usage:\n");
         printf("  %s 1          - Entraîner le modèle\n", argv[0]);
         printf("  %s 2          - Tester une image\n", argv[0]);
+        printf("  %s 3          - Tester un dossier\n", argv[0]);
         return 1;
     }
     
@@ -1107,8 +1235,17 @@ int main(int argc, char *argv[]) {
         } else {
             printf("Erreur de lecture du chemin.\n");
         }
-    } else {
-        printf("Mode invalide. Utilisez 1 pour entraîner ou 2 pour tester.\n");
+    } 
+    else if (mode == 3){
+        // argv[1] -> path du dossier a tester, argv[2] -> path du output
+        const char *base_path = argv[2];
+        //char output_path[512];
+        //sprintf(output_path, "%s/grid.txt", argv[3]);
+        return process_cells(base_path, argv[3]);
+
+    }
+    else {
+        printf("Mode invalide.\n");
         return 1;
     }
     

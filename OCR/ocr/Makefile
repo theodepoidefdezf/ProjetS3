@@ -1,8 +1,6 @@
-# Makefile pour le CNN de reconnaissance de lettres
-
 CC = gcc
 CFLAGS = -Wall -Wextra -O3 -march=native
-TARGET = cnn
+TARGET = main
 SRC = main.c
 
 # Cible par défaut
@@ -16,9 +14,13 @@ $(TARGET): $(SRC)
 debug: CFLAGS = -Wall -Wextra -g -O0
 debug: $(TARGET)
 
-# Nettoyage
+# Nettoyage standard (ne supprime QUE l'exécutable, garde le modèle)
 clean:
-	rm -f $(TARGET) model.txt
+	rm -f $(TARGET)
+
+# Nettoyage complet (supprime l'exécutable ET le modèle entraîné)
+clean-all: clean
+	rm -f model.txt
 
 # Entraînement
 train: $(TARGET)
@@ -35,6 +37,7 @@ help:
 	@echo "  make debug  - Compiler en mode debug"
 	@echo "  make train  - Entraîner le modèle"
 	@echo "  make test   - Tester une image"
-	@echo "  make clean  - Nettoyer les fichiers générés"
+	@echo "  make clean  - Supprimer l'exécutable (garde le modèle)"
+	@echo "  make clean-all - Tout supprimer (exécutable + modèle)"
 
-.PHONY: all clean train test debug help
+.PHONY: all clean clean-all train test debug help
