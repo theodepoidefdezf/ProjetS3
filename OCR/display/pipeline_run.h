@@ -4,5 +4,6 @@
 int clean_output(void);
 int run_pipeline_full(const char *input_image, double rotation_angle);
 void run_pipeline(const char *input_image);
+int run_command(const char *cmd, const char *description);
 
 #endif
