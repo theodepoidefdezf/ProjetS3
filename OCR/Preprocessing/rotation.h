@@ -3,8 +3,7 @@
 
 #include <SDL2/SDL.h>
 
-SDL_Surface *correction_inclinaison(SDL_Surface *img);
+SDL_Surface *correction_inclinaison(SDL_Surface *image,
+                                    const char *image_path);
 
-void manual_rotation(const char *image_path);
-
-#endif 
+#endif

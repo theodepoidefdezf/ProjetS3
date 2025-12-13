@@ -68,8 +68,11 @@ void preprocessing(const char *image_path)
     take(binarized, PATH_IMG_BINARIZE);
 
     // 3. Rotation automatique
-    SDL_Surface *auto_rotated = correction_inclinaison(binarized);
-    take(auto_rotated, PATH_IMG_AUTO_ROTATION);
+SDL_Surface *auto_rotated =
+    correction_inclinaison(binarized, image_path);
+
+take(auto_rotated, PATH_IMG_AUTO_ROTATION);
+
 
     // 4. Réduction du bruit sur l'image auto-rotée
     SDL_Surface *noise_auto = reduire_bruit(auto_rotated);
