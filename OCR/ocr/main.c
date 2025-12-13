@@ -1,3 +1,10 @@
+/*
+ * CNN pour reconnaissance de lettres - Utilise uniquement stdio.h
+ * Architecture: Conv -> ReLU -> Pool -> Conv -> ReLU -> Pool -> FC -> FC -> Softmax
+ * Images d'entrée: 50x50 pixels en niveaux de gris
+ * Sortie: 26 classes (A-Z)
+ */
+
 #include <stdio.h>
 
 /* ============================================================
@@ -7,25 +14,29 @@
 #define IMG_SIZE 50
 #define NUM_CLASSES 26
 
-#define CONV1_FILTERS 16      
+/* Architecture du réseau - VERSION AUGMENTÉE */
+#define CONV1_FILTERS 16      /* 8 → 16 */
 #define CONV1_SIZE 5
 #define POOL1_SIZE 2
 #define AFTER_POOL1 23
 
-#define CONV2_FILTERS 32     
+#define CONV2_FILTERS 32      /* 16 → 32 */
 #define CONV2_SIZE 3
 #define AFTER_POOL2 10
 
-#define FC1_SIZE 256          
+#define FC1_SIZE 256          /* 128 → 256 */
 #define FC2_SIZE NUM_CLASSES
 
-#define FLATTEN_SIZE (CONV2_FILTERS * AFTER_POOL2 * AFTER_POOL2)  
+#define FLATTEN_SIZE (CONV2_FILTERS * AFTER_POOL2 * AFTER_POOL2)  /* sera 32*10*10 = 3200 */
 
-#define LEARNING_RATE 0.0005f  
-#define EPOCHS 30              
+/* Hyperparamètres */
+#define LEARNING_RATE 0.0005f  /* réduire un peu car réseau plus grand */
+#define EPOCHS 20              /* peut nécessiter plus d'époques */
 #define SAMPLES_PER_LETTER 1000
 
-
+/* ============================================================
+ * FONCTIONS MATHÉMATIQUES DE BASE
+ * ============================================================ */
 
 static unsigned int rand_seed = 42;
 
@@ -35,6 +46,7 @@ float my_rand(void) {
 }
 
 float my_exp(float x) {
+    /* Approximation de e^x par série de Taylor */
     if (x > 20.0f) return 485165195.4f;
     if (x < -20.0f) return 0.0f;
     
@@ -49,13 +61,16 @@ float my_exp(float x) {
 }
 
 float my_log(float x) {
+    /* Approximation de ln(x) */
     if (x <= 0.0f) return -1000.0f;
     if (x < 0.0001f) return -1000.0f;
     
+    /* Normalisation: ln(x) = ln(m * 2^e) = ln(m) + e*ln(2) */
     float result = 0.0f;
     while (x > 2.0f) { x /= 2.0f; result += 0.693147f; }
     while (x < 0.5f) { x *= 2.0f; result -= 0.693147f; }
     
+    /* Série de Taylor pour ln(1+y) où y = x-1 */
     float y = x - 1.0f;
     float term = y;
     float sign = 1.0f;
@@ -91,42 +106,52 @@ float relu_derivative(float x) {
  * ============================================================ */
 
 typedef struct {
+    /* Couche Conv1: 8 filtres 5x5 */
     float conv1_weights[CONV1_FILTERS][CONV1_SIZE][CONV1_SIZE];
     float conv1_bias[CONV1_FILTERS];
     
+    /* Couche Conv2: 16 filtres 3x3x8 */
     float conv2_weights[CONV2_FILTERS][CONV1_FILTERS][CONV2_SIZE][CONV2_SIZE];
     float conv2_bias[CONV2_FILTERS];
     
+    /* Couche FC1: FLATTEN_SIZE -> FC1_SIZE */
     float fc1_weights[FC1_SIZE][FLATTEN_SIZE];
     float fc1_bias[FC1_SIZE];
     
+    /* Couche FC2: FC1_SIZE -> NUM_CLASSES */
     float fc2_weights[FC2_SIZE][FC1_SIZE];
     float fc2_bias[FC2_SIZE];
 } CNN;
 
+/* Buffers pour la propagation avant et arrière */
 typedef struct {
     float input[IMG_SIZE][IMG_SIZE];
     
+    /* Sorties Conv1 */
     float conv1_out[CONV1_FILTERS][IMG_SIZE - CONV1_SIZE + 1][IMG_SIZE - CONV1_SIZE + 1];
     float relu1_out[CONV1_FILTERS][IMG_SIZE - CONV1_SIZE + 1][IMG_SIZE - CONV1_SIZE + 1];
     float pool1_out[CONV1_FILTERS][AFTER_POOL1][AFTER_POOL1];
     int pool1_max_i[CONV1_FILTERS][AFTER_POOL1][AFTER_POOL1];
     int pool1_max_j[CONV1_FILTERS][AFTER_POOL1][AFTER_POOL1];
     
+    /* Sorties Conv2 */
     float conv2_out[CONV2_FILTERS][AFTER_POOL1 - CONV2_SIZE + 1][AFTER_POOL1 - CONV2_SIZE + 1];
     float relu2_out[CONV2_FILTERS][AFTER_POOL1 - CONV2_SIZE + 1][AFTER_POOL1 - CONV2_SIZE + 1];
     float pool2_out[CONV2_FILTERS][AFTER_POOL2][AFTER_POOL2];
     int pool2_max_i[CONV2_FILTERS][AFTER_POOL2][AFTER_POOL2];
     int pool2_max_j[CONV2_FILTERS][AFTER_POOL2][AFTER_POOL2];
     
+    /* Vecteur aplati */
     float flatten[FLATTEN_SIZE];
     
+    /* Sorties FC */
     float fc1_out[FC1_SIZE];
     float relu3_out[FC1_SIZE];
     float fc2_out[FC2_SIZE];
     float softmax_out[NUM_CLASSES];
 } ForwardCache;
 
+/* Gradients */
 typedef struct {
     float conv1_weights[CONV1_FILTERS][CONV1_SIZE][CONV1_SIZE];
     float conv1_bias[CONV1_FILTERS];
@@ -138,6 +163,7 @@ typedef struct {
     float fc2_bias[FC2_SIZE];
 } Gradients;
 
+/* Variables globales */
 static CNN network;
 static ForwardCache cache;
 static Gradients grads;
@@ -147,6 +173,7 @@ static Gradients grads;
  * ============================================================ */
 
 float xavier_init(int fan_in, int fan_out) {
+    /* Initialisation Xavier/Glorot */
     float limit = my_sqrt(6.0f / (float)(fan_in + fan_out));
     return (my_rand() * 2.0f - 1.0f) * limit;
 }
@@ -154,6 +181,7 @@ float xavier_init(int fan_in, int fan_out) {
 void init_network(void) {
     int f, c, i, j;
     
+    /* Conv1: fan_in = 5*5 = 25, fan_out = 8 */
     for (f = 0; f < CONV1_FILTERS; f++) {
         for (i = 0; i < CONV1_SIZE; i++) {
             for (j = 0; j < CONV1_SIZE; j++) {
@@ -163,6 +191,7 @@ void init_network(void) {
         network.conv1_bias[f] = 0.0f;
     }
     
+    /* Conv2: fan_in = 8*3*3 = 72, fan_out = 16 */
     for (f = 0; f < CONV2_FILTERS; f++) {
         for (c = 0; c < CONV1_FILTERS; c++) {
             for (i = 0; i < CONV2_SIZE; i++) {
@@ -174,6 +203,7 @@ void init_network(void) {
         network.conv2_bias[f] = 0.0f;
     }
     
+    /* FC1 */
     for (i = 0; i < FC1_SIZE; i++) {
         for (j = 0; j < FLATTEN_SIZE; j++) {
             network.fc1_weights[i][j] = xavier_init(FLATTEN_SIZE, FC1_SIZE);
@@ -181,6 +211,7 @@ void init_network(void) {
         network.fc1_bias[i] = 0.0f;
     }
     
+    /* FC2 */
     for (i = 0; i < FC2_SIZE; i++) {
         for (j = 0; j < FC1_SIZE; j++) {
             network.fc2_weights[i][j] = xavier_init(FC1_SIZE, FC2_SIZE);
@@ -193,13 +224,16 @@ void init_network(void) {
  * LECTURE D'IMAGE PBM/PGM
  * ============================================================ */
 
+/* Fonction pour sauter les espaces blancs et commentaires */
 static void skip_whitespace_and_comments(FILE *fp) {
     int c;
     while (1) {
         c = fgetc(fp);
         if (c == '#') {
+            /* Sauter le commentaire jusqu'à la fin de la ligne */
             while ((c = fgetc(fp)) != '\n' && c != EOF);
         } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+            /* Continuer à sauter les espaces blancs */
         } else {
             if (c != EOF) {
                 ungetc(c, fp);
@@ -216,6 +250,7 @@ int read_pbm(const char *filename, float img[IMG_SIZE][IMG_SIZE]) {
         return -1;
     }
     
+    /* Lire le magic number */
     char magic[3];
     if (fscanf(fp, "%2s", magic) != 1) {
         printf("Erreur: impossible de lire le magic number\n");
@@ -234,6 +269,7 @@ int read_pbm(const char *filename, float img[IMG_SIZE][IMG_SIZE]) {
         return -1;
     }
     
+    /* Lire les dimensions */
     skip_whitespace_and_comments(fp);
     int width, height;
     if (fscanf(fp, "%d", &width) != 1) {
@@ -255,6 +291,7 @@ int read_pbm(const char *filename, float img[IMG_SIZE][IMG_SIZE]) {
         return -1;
     }
     
+    /* Lire maxval pour PGM */
     int maxval = 1;
     if (is_pgm_ascii || is_pgm_binary) {
         skip_whitespace_and_comments(fp);
@@ -265,6 +302,7 @@ int read_pbm(const char *filename, float img[IMG_SIZE][IMG_SIZE]) {
         }
     }
     
+    /* Sauter un seul caractère whitespace après le header pour le format binaire */
     if (is_pbm_binary || is_pgm_binary) {
         fgetc(fp);
     }
@@ -272,6 +310,7 @@ int read_pbm(const char *filename, float img[IMG_SIZE][IMG_SIZE]) {
     int i, j;
     
     if (is_pbm_ascii) {
+        /* P1: PBM ASCII - 0 = blanc, 1 = noir */
         for (i = 0; i < IMG_SIZE; i++) {
             for (j = 0; j < IMG_SIZE; j++) {
                 int pixel;
@@ -281,12 +320,14 @@ int read_pbm(const char *filename, float img[IMG_SIZE][IMG_SIZE]) {
                     fclose(fp);
                     return -1;
                 }
+                /* PBM: 1 = noir (0.0), 0 = blanc (1.0) */
                 img[i][j] = (pixel == 0) ? 1.0f : 0.0f;
             }
         }
     } else if (is_pbm_binary) {
+        /* P4: PBM binaire - bits packés */
         int bytes_per_row = (IMG_SIZE + 7) / 8;
-        unsigned char row_buffer[16]; 
+        unsigned char row_buffer[16]; /* Suffisant pour 50 pixels = 7 octets */
         
         for (i = 0; i < IMG_SIZE; i++) {
             if (fread(row_buffer, 1, bytes_per_row, fp) != (size_t)bytes_per_row) {
@@ -298,10 +339,12 @@ int read_pbm(const char *filename, float img[IMG_SIZE][IMG_SIZE]) {
                 int byte_idx = j / 8;
                 int bit_idx = 7 - (j % 8);
                 int pixel = (row_buffer[byte_idx] >> bit_idx) & 1;
+                /* PBM: 1 = noir (0.0), 0 = blanc (1.0) */
                 img[i][j] = (pixel == 0) ? 1.0f : 0.0f;
             }
         }
     } else if (is_pgm_ascii) {
+        /* P2: PGM ASCII */
         for (i = 0; i < IMG_SIZE; i++) {
             for (j = 0; j < IMG_SIZE; j++) {
                 int pixel;
@@ -315,6 +358,7 @@ int read_pbm(const char *filename, float img[IMG_SIZE][IMG_SIZE]) {
             }
         }
     } else if (is_pgm_binary) {
+        /* P5: PGM binaire */
         unsigned char pixel_buffer[IMG_SIZE];
         for (i = 0; i < IMG_SIZE; i++) {
             if (fread(pixel_buffer, 1, IMG_SIZE, fp) != IMG_SIZE) {
@@ -341,12 +385,14 @@ void forward(float input[IMG_SIZE][IMG_SIZE]) {
     float sum, max_val;
     int max_i, max_j;
     
+    /* Copier l'entrée */
     for (i = 0; i < IMG_SIZE; i++) {
         for (j = 0; j < IMG_SIZE; j++) {
             cache.input[i][j] = input[i][j];
         }
     }
     
+    /* ========== CONV1 ========== */
     int conv1_out_size = IMG_SIZE - CONV1_SIZE + 1;
     for (f = 0; f < CONV1_FILTERS; f++) {
         for (i = 0; i < conv1_out_size; i++) {
@@ -363,6 +409,7 @@ void forward(float input[IMG_SIZE][IMG_SIZE]) {
         }
     }
     
+    /* ========== POOL1 (Max Pooling 2x2) ========== */
     for (f = 0; f < CONV1_FILTERS; f++) {
         for (i = 0; i < AFTER_POOL1; i++) {
             for (j = 0; j < AFTER_POOL1; j++) {
@@ -389,6 +436,7 @@ void forward(float input[IMG_SIZE][IMG_SIZE]) {
         }
     }
     
+    /* ========== CONV2 ========== */
     int conv2_out_size = AFTER_POOL1 - CONV2_SIZE + 1;
     for (f = 0; f < CONV2_FILTERS; f++) {
         for (i = 0; i < conv2_out_size; i++) {
@@ -408,6 +456,7 @@ void forward(float input[IMG_SIZE][IMG_SIZE]) {
         }
     }
     
+    /* ========== POOL2 ========== */
     for (f = 0; f < CONV2_FILTERS; f++) {
         for (i = 0; i < AFTER_POOL2; i++) {
             for (j = 0; j < AFTER_POOL2; j++) {
@@ -434,6 +483,7 @@ void forward(float input[IMG_SIZE][IMG_SIZE]) {
         }
     }
     
+    /* ========== FLATTEN ========== */
     int idx = 0;
     for (f = 0; f < CONV2_FILTERS; f++) {
         for (i = 0; i < AFTER_POOL2; i++) {
@@ -443,7 +493,7 @@ void forward(float input[IMG_SIZE][IMG_SIZE]) {
         }
     }
     
-    
+    /* ========== FC1 ========== */
     for (i = 0; i < FC1_SIZE; i++) {
         sum = network.fc1_bias[i];
         for (j = 0; j < FLATTEN_SIZE; j++) {
@@ -453,7 +503,7 @@ void forward(float input[IMG_SIZE][IMG_SIZE]) {
         cache.relu3_out[i] = relu(sum);
     }
     
-    
+    /* ========== FC2 ========== */
     for (i = 0; i < FC2_SIZE; i++) {
         sum = network.fc2_bias[i];
         for (j = 0; j < FC1_SIZE; j++) {
@@ -462,7 +512,7 @@ void forward(float input[IMG_SIZE][IMG_SIZE]) {
         cache.fc2_out[i] = sum;
     }
     
-    
+    /* ========== SOFTMAX ========== */
     float max_logit = cache.fc2_out[0];
     for (i = 1; i < NUM_CLASSES; i++) {
         if (cache.fc2_out[i] > max_logit) max_logit = cache.fc2_out[i];
@@ -524,14 +574,14 @@ void zero_gradients(void) {
 void backward(int label) {
     int f, c, i, j, ki, kj;
     
-   
+    /* Gradient de la loss (Cross-Entropy + Softmax) */
     float d_fc2_out[FC2_SIZE];
     for (i = 0; i < FC2_SIZE; i++) {
         d_fc2_out[i] = cache.softmax_out[i];
         if (i == label) d_fc2_out[i] -= 1.0f;
     }
     
-    
+    /* ========== Gradients FC2 ========== */
     for (i = 0; i < FC2_SIZE; i++) {
         grads.fc2_bias[i] += d_fc2_out[i];
         for (j = 0; j < FC1_SIZE; j++) {
@@ -539,7 +589,7 @@ void backward(int label) {
         }
     }
     
-    
+    /* Gradient vers relu3_out */
     float d_relu3[FC1_SIZE];
     for (j = 0; j < FC1_SIZE; j++) {
         d_relu3[j] = 0.0f;
@@ -548,13 +598,13 @@ void backward(int label) {
         }
     }
     
-    
+    /* Gradient à travers ReLU */
     float d_fc1_out[FC1_SIZE];
     for (i = 0; i < FC1_SIZE; i++) {
         d_fc1_out[i] = d_relu3[i] * relu_derivative(cache.fc1_out[i]);
     }
     
-    
+    /* ========== Gradients FC1 ========== */
     for (i = 0; i < FC1_SIZE; i++) {
         grads.fc1_bias[i] += d_fc1_out[i];
         for (j = 0; j < FLATTEN_SIZE; j++) {
@@ -562,7 +612,7 @@ void backward(int label) {
         }
     }
     
-    
+    /* Gradient vers flatten */
     float d_flatten[FLATTEN_SIZE];
     for (j = 0; j < FLATTEN_SIZE; j++) {
         d_flatten[j] = 0.0f;
@@ -571,7 +621,7 @@ void backward(int label) {
         }
     }
     
-    
+    /* ========== Déflatten vers pool2_out ========== */
     float d_pool2[CONV2_FILTERS][AFTER_POOL2][AFTER_POOL2];
     int idx = 0;
     for (f = 0; f < CONV2_FILTERS; f++) {
@@ -582,7 +632,7 @@ void backward(int label) {
         }
     }
     
-    
+    /* ========== Gradient à travers Pool2 ========== */
     int conv2_out_size = AFTER_POOL1 - CONV2_SIZE + 1;
     float d_relu2[CONV2_FILTERS][AFTER_POOL1 - CONV2_SIZE + 1][AFTER_POOL1 - CONV2_SIZE + 1];
     for (f = 0; f < CONV2_FILTERS; f++) {
@@ -603,7 +653,7 @@ void backward(int label) {
         }
     }
     
-    
+    /* Gradient à travers ReLU2 */
     float d_conv2[CONV2_FILTERS][AFTER_POOL1 - CONV2_SIZE + 1][AFTER_POOL1 - CONV2_SIZE + 1];
     for (f = 0; f < CONV2_FILTERS; f++) {
         for (i = 0; i < conv2_out_size; i++) {
@@ -613,7 +663,7 @@ void backward(int label) {
         }
     }
     
-    
+    /* ========== Gradients Conv2 ========== */
     for (f = 0; f < CONV2_FILTERS; f++) {
         for (i = 0; i < conv2_out_size; i++) {
             for (j = 0; j < conv2_out_size; j++) {
@@ -630,7 +680,7 @@ void backward(int label) {
         }
     }
     
-    
+    /* Gradient vers pool1_out */
     float d_pool1[CONV1_FILTERS][AFTER_POOL1][AFTER_POOL1];
     for (c = 0; c < CONV1_FILTERS; c++) {
         for (i = 0; i < AFTER_POOL1; i++) {
@@ -655,7 +705,7 @@ void backward(int label) {
         }
     }
     
-    
+    /* ========== Gradient à travers Pool1 ========== */
     int conv1_out_size = IMG_SIZE - CONV1_SIZE + 1;
     float d_relu1[CONV1_FILTERS][IMG_SIZE - CONV1_SIZE + 1][IMG_SIZE - CONV1_SIZE + 1];
     for (f = 0; f < CONV1_FILTERS; f++) {
@@ -676,7 +726,7 @@ void backward(int label) {
         }
     }
     
-    
+    /* Gradient à travers ReLU1 */
     float d_conv1[CONV1_FILTERS][IMG_SIZE - CONV1_SIZE + 1][IMG_SIZE - CONV1_SIZE + 1];
     for (f = 0; f < CONV1_FILTERS; f++) {
         for (i = 0; i < conv1_out_size; i++) {
@@ -686,7 +736,7 @@ void backward(int label) {
         }
     }
     
-   
+    /* ========== Gradients Conv1 ========== */
     for (f = 0; f < CONV1_FILTERS; f++) {
         for (i = 0; i < conv1_out_size; i++) {
             for (j = 0; j < conv1_out_size; j++) {
@@ -755,7 +805,7 @@ int save_network(const char *filename) {
     
     fprintf(fp, "CNN_MODEL_V1\n");
     
-    
+    /* Conv1 */
     for (f = 0; f < CONV1_FILTERS; f++) {
         for (i = 0; i < CONV1_SIZE; i++) {
             for (j = 0; j < CONV1_SIZE; j++) {
@@ -765,7 +815,7 @@ int save_network(const char *filename) {
         fprintf(fp, "%.8f\n", network.conv1_bias[f]);
     }
     
-    
+    /* Conv2 */
     for (f = 0; f < CONV2_FILTERS; f++) {
         for (c = 0; c < CONV1_FILTERS; c++) {
             for (i = 0; i < CONV2_SIZE; i++) {
@@ -777,7 +827,7 @@ int save_network(const char *filename) {
         fprintf(fp, "%.8f\n", network.conv2_bias[f]);
     }
     
-    
+    /* FC1 */
     for (i = 0; i < FC1_SIZE; i++) {
         for (j = 0; j < FLATTEN_SIZE; j++) {
             fprintf(fp, "%.8f\n", network.fc1_weights[i][j]);
@@ -785,7 +835,7 @@ int save_network(const char *filename) {
         fprintf(fp, "%.8f\n", network.fc1_bias[i]);
     }
     
-    
+    /* FC2 */
     for (i = 0; i < FC2_SIZE; i++) {
         for (j = 0; j < FC1_SIZE; j++) {
             fprintf(fp, "%.8f\n", network.fc2_weights[i][j]);
@@ -813,7 +863,7 @@ int load_network(const char *filename) {
     
     int f, c, i, j;
     
-    
+    /* Conv1 */
     for (f = 0; f < CONV1_FILTERS; f++) {
         for (i = 0; i < CONV1_SIZE; i++) {
             for (j = 0; j < CONV1_SIZE; j++) {
@@ -829,7 +879,7 @@ int load_network(const char *filename) {
         }
     }
     
-    
+    /* Conv2 */
     for (f = 0; f < CONV2_FILTERS; f++) {
         for (c = 0; c < CONV1_FILTERS; c++) {
             for (i = 0; i < CONV2_SIZE; i++) {
@@ -847,7 +897,7 @@ int load_network(const char *filename) {
         }
     }
     
-    
+    /* FC1 */
     for (i = 0; i < FC1_SIZE; i++) {
         for (j = 0; j < FLATTEN_SIZE; j++) {
             if (fscanf(fp, "%f", &network.fc1_weights[i][j]) != 1) {
@@ -861,7 +911,7 @@ int load_network(const char *filename) {
         }
     }
     
-    
+    /* FC2 */
     for (i = 0; i < FC2_SIZE; i++) {
         for (j = 0; j < FC1_SIZE; j++) {
             if (fscanf(fp, "%f", &network.fc2_weights[i][j]) != 1) {
@@ -909,6 +959,7 @@ void train(const char *data_dir) {
     
     init_network();
     
+    /* Créer les indices pour le mélange */
     for (i = 0; i < total_samples; i++) {
         indices[i] = i;
     }
@@ -917,6 +968,7 @@ void train(const char *data_dir) {
         float total_loss = 0.0f;
         int correct = 0;
         
+        /* Mélanger les données */
         shuffle_indices(indices, total_samples);
         
         for (i = 0; i < total_samples; i++) {
@@ -924,17 +976,21 @@ void train(const char *data_dir) {
             letter = idx / SAMPLES_PER_LETTER;
             sample = idx % SAMPLES_PER_LETTER;
             
+            /* Construire le chemin - maintenant avec .pbm */
             sprintf(path, "%s/%c/%c_%03d.pbm", data_dir, 'A' + letter, 'A' + letter, sample);
             
             if (read_pbm(path, img) != 0) {
                 continue;
             }
             
+            /* Forward */
             forward(img);
             
+            /* Calculer la loss */
             float loss = -my_log(cache.softmax_out[letter]);
             total_loss += loss;
             
+            /* Vérifier la prédiction */
             int pred = 0;
             float max_prob = cache.softmax_out[0];
             int k;
@@ -946,10 +1002,12 @@ void train(const char *data_dir) {
             }
             if (pred == letter) correct++;
             
+            /* Backward */
             zero_gradients();
             backward(letter);
             update_weights(LEARNING_RATE);
             
+            /* Affichage de progression */
             if ((i + 1) % 200 == 0) {
                 printf("\r  Époque %d/%d: %d/%d échantillons traités...", 
                        epoch + 1, EPOCHS, i + 1, total_samples);
@@ -1008,7 +1066,7 @@ char test_image(const char *image_path) {
     
     printf("Probabilités (top 5):\n");
     
-   
+    /* Trouver les 5 meilleures probabilités */
     int sorted[NUM_CLASSES];
     int i, j;
     for (i = 0; i < NUM_CLASSES; i++) sorted[i] = i;
@@ -1038,7 +1096,7 @@ int file_exists(const char *path) {
 
 int process_cells(const char *base_path, const char *OUTPUT_PATH) {
     char output_path[512];
-    sprintf(output_path, "%s/grid.txt", OUTPUT_PATH);
+    sprintf(output_path, "%s/grid", OUTPUT_PATH);
     FILE *output = fopen(output_path, "w");
     if (!output) {
         printf("Erreur: Impossible de créer le fichier de sortie %s\n", output_path);
@@ -1049,34 +1107,41 @@ int process_cells(const char *base_path, const char *OUTPUT_PATH) {
     char line_path[512];
     char cell_path[512];
 
-    
+    // Parcourir les dossiers line_00, line_01, ...
     while (1) {
-       
+        // Construire le chemin du dossier line_XX
         sprintf(line_path, "%s/2_cells/line_%02d", base_path, line_index);
 
-       
+        // Vérifier si le dossier line existe en testant si cell_00.pbm existe
         sprintf(cell_path, "%s/cell_00.pbm", line_path);
         if (!file_exists(cell_path)) {
-            
+            // Le dossier line n'existe pas ou est vide, on a fini
             break;
         }
 
         int cell_index = 0;
 
+        // Parcourir les fichiers cell_00.pbm, cell_01.pbm, ...
         while (1) {
+            // Construire le chemin du fichier cell_XX.pbm
             sprintf(cell_path, "%s/cell_%02d.pbm", line_path, cell_index);
 
+            // Vérifier si le fichier cell existe
             if (!file_exists(cell_path)) {
+                // Plus de cellules dans cette ligne
                 break;
             }
 
+            // Analyser l'image et récupérer le caractère
             char c = test_image(cell_path);
 
+            // Écrire le caractère dans le fichier de sortie
             fputc(c, output);
 
             cell_index++;
         }
 
+        // Saut de ligne après chaque dossier line
         fputc('\n', output);
 
         line_index++;
@@ -1087,7 +1152,7 @@ int process_cells(const char *base_path, const char *OUTPUT_PATH) {
     printf("Nombre de lignes traitées: %d\n", line_index);
     
     char output_path2[512];
-    sprintf(output_path2, "%s/word.txt", OUTPUT_PATH);
+    sprintf(output_path2, "%s/mots", OUTPUT_PATH);
     FILE *output2 = fopen(output_path2, "w");
     if (!output2) {
         printf("Erreur: Impossible de créer le fichier de sortie %s\n", output_path2);
@@ -1098,30 +1163,41 @@ int process_cells(const char *base_path, const char *OUTPUT_PATH) {
     char word_path[512];
     char char_path[512];
 
+    // Parcourir les dossiers word_00, word_01, ...
     while (1) {
+        // Construire le chemin du dossier word_XX
         sprintf(word_path, "%s/3_words/word_%02d", base_path, word_index);
 
+        // Vérifier si le dossier word existe en testant si char_00.pbm existe
         sprintf(char_path, "%s/char_00.pbm", word_path);
         if (!file_exists(char_path)) {
+            // Le dossier word n'existe pas ou est vide, on a fini
             break;
         }
 
         int char_index = 0;
 
+        // Parcourir les fichiers char_00.pbm, char_01.pbm, ...
         while (1) {
+            // Construire le chemin du fichier char_XX.pbm
             sprintf(char_path, "%s/char_%02d.pbm", word_path, char_index);
 
+            // Vérifier si le fichier char existe
             if (!file_exists(char_path)) {
+                // Plus de caractères dans ce mot
                 break;
             }
 
+            // Analyser l'image et récupérer le caractère
             char c = test_image(char_path);
 
+            // Écrire le caractère dans le fichier de sortie
             fputc(c, output2);
 
             char_index++;
         }
 
+        // Espace après chaque mot (ou \n si tu préfères un mot par ligne)
         fputc('\n', output2);
 
         word_index++;
@@ -1161,7 +1237,10 @@ int main(int argc, char *argv[]) {
         }
     } 
     else if (mode == 3){
+        // argv[1] -> path du dossier a tester, argv[2] -> path du output
         const char *base_path = argv[2];
+        //char output_path[512];
+        //sprintf(output_path, "%s/grid.txt", argv[3]);
         return process_cells(base_path, argv[3]);
 
     }
