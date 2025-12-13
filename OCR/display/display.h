@@ -32,4 +32,3 @@ void app_widgets_free(AppWidgets* aw);
 int init_gui(int argc, char **argv, AppWidgets **out_widgets);
 
 #endif
- 

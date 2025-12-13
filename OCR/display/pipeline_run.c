@@ -43,14 +43,14 @@ int run_pipeline_full(const char *input_image, double rotation_angle){
              input_image);
     if(run_command(cmd, "Compilation et execution Preprocessing") != 0) return -1;
 
-    const char *prep_output = "../output/image_auto_rotation.bmp";
+    const char *prep_output = "../output/image_noise_reduc_auto.bmp";
     const char *image_to_use = input_image;
     if(stat(prep_output, &st) == 0){
         image_to_use = prep_output;
     }
 
     snprintf(cmd, sizeof(cmd),
-             "make -C ../detection && cd ../detection && ./test_decoupe '%s'",
+             "make -C ../detection && cd ../detection && ./test_decoupe '%s' test",
              image_to_use);
     if(run_command(cmd, "Compilation et execution Decoupage") != 0) return -1;
 
