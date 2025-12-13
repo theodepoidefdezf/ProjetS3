@@ -1,24 +1,23 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -g `pkg-config --cflags gtk+-3.0`
-LDFLAGS = `pkg-config --libs gtk+-3.0`
+LDFLAGS = `pkg-config --libs gtk+-3.0` -lm
 
-SRCS = main.c display.c pipeline_run.c
-OBJS = $(SRCS:.c=.o)
-
+SRC = main.c display.c pipeline_run.c
+OBJ = $(SRC:.c=.o)
 TARGET = display
+
+.PHONY: all clean run
 
 all: $(TARGET)
 
-$(TARGET): $(OBJS)
-	$(CC) $(OBJS) -o $(TARGET) $(LDFLAGS) -lm
+$(TARGET): $(OBJ)
+	$(CC) $(OBJ) -o $(TARGET) $(LDFLAGS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -f $(OBJ) $(TARGET)
 
-run: all
+run: $(TARGET)
 	./$(TARGET)
-
-.PHONY: all clean run

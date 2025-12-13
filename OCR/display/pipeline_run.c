@@ -1,21 +1,70 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <errno.h>
 #include "pipeline_run.h"
 
-void run_pipeline(const char *input_image)
-{
-    char cmd[512];
-    system("make -C ../Preprocessing");
-    snprintf(cmd, sizeof(cmd), "../Preprocessing/preprocessing_test %s", input_image);
-    system(cmd);
-    const char *prep_output = "../output/image_rotation_manuelle.bmp";
-    system("make -C ../detection");
-    snprintf(cmd, sizeof(cmd), "../detection/test_decoupe %s auto_run", prep_output);
-    system(cmd);
-    const char *grid_file  = "../output/auto_run/grid.txt";
-    const char *words_file = "../output/auto_run/words.txt";
-    system("make -C ../Solver");
-    snprintf(cmd, sizeof(cmd), "../Solver/solver %s %s", grid_file, words_file);
-    system(cmd);
+static int run_command(const char *cmd, const char *description){
+    printf("\n========================================\n");
+    printf("[PIPELINE] %s\n", description);
+    printf("  Commande: %s\n", cmd);
+    printf("========================================\n");
+    int ret = system(cmd);
+    if(ret != 0){
+        printf("[ERREUR] %s a echoue (code: %d)\n", description, ret);
+        return -1;
+    }
+    printf("[OK] %s termine\n", description);
+    return 0;
+}
+
+static void ensure_output_folder(void){
+    if(mkdir("../output", 0777) != 0 && errno != EEXIST){
+        fprintf(stderr, "Impossible de creer ../output\n");
+    }
+}
+
+int clean_output(void){
+    system("rm -rf ../output/*");
+    ensure_output_folder();
+    return 0;
+}
+
+int run_pipeline_full(const char *input_image, double rotation_angle){
+    (void)rotation_angle;
+    ensure_output_folder();
+
+    char cmd[2048];
+    struct stat st;
+
+    snprintf(cmd, sizeof(cmd),
+             "make -C ../Preprocessing && ../Preprocessing/preprocessing_test '%s'",
+             input_image);
+    if(run_command(cmd, "Compilation et execution Preprocessing") != 0) return -1;
+
+    const char *prep_output = "../output/image_auto_rotation.bmp";
+    const char *image_to_use = input_image;
+    if(stat(prep_output, &st) == 0){
+        image_to_use = prep_output;
+    }
+
+    snprintf(cmd, sizeof(cmd),
+             "make -C ../detection && ../detection/test_decoupe '%s' auto_run",
+             image_to_use);
+    if(run_command(cmd, "Compilation et execution Decoupage") != 0) return -1;
+
+    snprintf(cmd, sizeof(cmd),
+             "make -C ../ocr && ../ocr/main ../output/auto_run/2_cells cell");
+    if(run_command(cmd, "Compilation et execution OCR") != 0) return -1;
+
+    snprintf(cmd, sizeof(cmd),
+             "make -C ../Solver && ../Solver/solver '../Solver/grid' '../Solver/mots'");
+    if(run_command(cmd, "Compilation et execution Solver") != 0) return -1;
+
+    return 0;
+}
+
+void run_pipeline(const char *input_image){
+    run_pipeline_full(input_image, 0.0);
 }

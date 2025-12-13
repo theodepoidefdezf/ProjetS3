@@ -44,7 +44,6 @@ static void take(SDL_Surface *surface, const char *path)
     SDL_FreeSurface(bmp_surface);
 }
 
-
 void preprocessing(const char *image_path)
 {
     ensure_output_folder();
@@ -58,20 +57,25 @@ void preprocessing(const char *image_path)
 
     printf("Prétraitement de : %s\n", image_path);
 
+    // 1. Grayscale
     SDL_Surface *grayscale = SDL_ConvertSurface(src, src->format, 0);
     conversion(grayscale);
     take(grayscale, PATH_IMG_GRAYSCALE);
 
+    // 2. Binarisation
     SDL_Surface *binarized = SDL_ConvertSurface(grayscale, grayscale->format, 0);
     conversion_bina(binarized);
     take(binarized, PATH_IMG_BINARIZE);
 
+    // 3. Rotation automatique
     SDL_Surface *auto_rotated = correction_inclinaison(binarized);
     take(auto_rotated, PATH_IMG_AUTO_ROTATION);
 
+    // 4. Réduction du bruit sur l'image auto-rotée
     SDL_Surface *noise_auto = reduire_bruit(auto_rotated);
     take(noise_auto, PATH_IMG_NOISE_REDUC_AUTO);
 
+    // 5. Réduction du bruit sur l'image binarisée (sans rotation)
     SDL_Surface *noise_manual = reduire_bruit(binarized);
     take(noise_manual, PATH_IMG_NOISE_REDUC_MAN);
 

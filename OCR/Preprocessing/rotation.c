@@ -46,7 +46,6 @@ static SDL_Surface *faire_rotation(SDL_Surface *image, double angle)
     return resultat;
 }
 
-
 static int somme_projection(SDL_Surface *image, int h, double angle)
 {
     angle = degres_vers_radians(angle);
@@ -111,33 +110,4 @@ SDL_Surface *correction_inclinaison(SDL_Surface *image)
     printf("Image corrigée sauvegardée : ../output/image_rotation_auto.bmp\n");
 
     return redressee;
-}
-
-
-void manual_rotation(const char *chemin_image)
-{
-    SDL_Surface *image = image_load(chemin_image);
-    if (!image)
-    {
-        fprintf(stderr, "Erreur : impossible de charger l’image %s\n", chemin_image);
-        return;
-    }
-
-    double angle;
-    printf("Entrez l’angle de rotation (°, positif = sens horaire) : ");
-    if (scanf("%lf", &angle) != 1)
-    {
-        fprintf(stderr, "Entrée invalide.\n");
-        SDL_FreeSurface(image);
-        return;
-    }
-
-    SDL_Surface *tournee = faire_rotation(image, angle);
-    SDL_SaveBMP(tournee, "../output/image_rotation_manuelle.bmp");
-
-    printf("Rotation manuelle appliquée : %.2f°\n", angle);
-    printf("Image sauvegardée : ../output/image_rotation_manuelle.bmp\n");
-
-    SDL_FreeSurface(tournee);
-    SDL_FreeSurface(image);
 }
