@@ -21,23 +21,21 @@ int main(int argc, char *argv[])
 
     if (!lire_grille(fichier_grille, grille, &lignes, &colonnes))
     {
-        fprintf(stderr, "Erreur: impossible de lire la grille depuis '%s'\n",
-                fichier_grille);
+        fprintf(stderr, "Erreur: impossible de lire la grille depuis '%s'\n", fichier_grille);
         return 1;
     }
 
     FILE *fm = fopen(fichier_mots, "r");
     if (!fm)
     {
-        fprintf(stderr, "Erreur: impossible d'ouvrir le fichier mots '%s'\n",
-                fichier_mots);
+        fprintf(stderr, "Erreur: impossible d'ouvrir le fichier mots '%s'\n", fichier_mots);
         return 1;
     }
 
     FILE *fc = fopen("coordonnees", "w");
     if (!fc)
     {
-        fprintf(stderr, "Erreur: impossible de créer le fichier coordonnees.txt\n");
+        fprintf(stderr, "Erreur: impossible de créer le fichier coordonnees\n");
         fclose(fm);
         return 1;
     }
@@ -64,20 +62,14 @@ int main(int argc, char *argv[])
 
         if (resultat.trouve)
         {
-            printf("%s: (%d,%d)(%d,%d)\n",
-                   mot,
-                   resultat.start_colonne, resultat.start_ligne,
+            printf("%s: (%d,%d)(%d,%d)\n", 
+                   mot, 
+                   resultat.start_colonne, resultat.start_ligne, 
                    resultat.end_colonne, resultat.end_ligne);
 
-            fprintf(fc, "%s: (%d,%d)(%d,%d)\n",
-                    mot,
+            fprintf(fc, "%d,%d %d,%d\n",
                     resultat.start_colonne, resultat.start_ligne,
                     resultat.end_colonne, resultat.end_ligne);
-        }
-        else
-        {
-            printf("%s: Not Found\n", mot);
-            fprintf(fc, "%s: Not Found\n", mot);
         }
     }
 
