@@ -19,10 +19,15 @@ int run_command(const char *cmd, const char *description){
     return 0;
 }
 
-static void ensure_output_folder(void){
-    if(mkdir("../output", 0777) != 0 && errno != EEXIST){
-        fprintf(stderr, "Impossible de creer ../output\n");
+static void ensure_folder(const char *path){
+    if(mkdir(path, 0777) != 0 && errno != EEXIST){
+        fprintf(stderr, "Impossible de creer %s\n", path);
     }
+}
+
+static void ensure_output_folder(void){
+    ensure_folder("../output");
+    ensure_folder("../output/mots_ocr");
 }
 
 int clean_output(void){
@@ -55,11 +60,11 @@ int run_pipeline_full(const char *input_image, double rotation_angle){
     if(run_command(cmd, "Compilation et execution Decoupage") != 0) return -1;
 
     snprintf(cmd, sizeof(cmd),
-             "make -C ../ocr && cd ../ocr && ./main 3 ../output/auto_run ../Solver");
+             "make -C ../ocr && cd ../ocr && ./main 3 ../output/auto_run ../output/mots_ocr");
     if(run_command(cmd, "Compilation et execution OCR") != 0) return -1;
 
     snprintf(cmd, sizeof(cmd),
-             "make -C ../Solver && ../Solver/solver '../Solver/grid' '../Solver/mots'");
+             "make -C ../Solver && ../Solver/solver '../Solver/grid' '../output/mots_ocr'");
     if(run_command(cmd, "Compilation et execution Solver") != 0) return -1;
 
     return 0;
