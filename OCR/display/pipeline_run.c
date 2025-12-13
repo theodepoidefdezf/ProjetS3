@@ -23,13 +23,10 @@ static void ensure_output_folder(void){
     if(mkdir("../output", 0777) != 0 && errno != EEXIST){
         fprintf(stderr, "Impossible de creer ../output\n");
     }
-    if(mkdir("../Solver", 0777) != 0 && errno != EEXIST){
-        fprintf(stderr, "Impossible de creer ../Solver\n");
-    }
 }
 
 int clean_output(void){
-    system("rm -rf ../output/* ../Solver/*");
+    system("rm -rf ../output/*");
     ensure_output_folder();
     return 0;
 }
@@ -41,11 +38,10 @@ int run_pipeline_full(const char *input_image, double rotation_angle){
     char cmd[2048];
     struct stat st;
 
-    snprintf(cmd, sizeof(cmd), "make -C ../Preprocessing");
-    if(run_command(cmd, "Compilation Preprocessing") != 0) return -1;
-
-    snprintf(cmd, sizeof(cmd), "../Preprocessing/preprocessing_test '%s'", input_image);
-    if(run_command(cmd, "Execution Preprocessing") != 0) return -1;
+    snprintf(cmd, sizeof(cmd),
+             "make -C ../Preprocessing && ../Preprocessing/preprocessing_test '%s'",
+             input_image);
+    if(run_command(cmd, "Compilation et execution Preprocessing") != 0) return -1;
 
     const char *prep_output = "../output/image_auto_rotation.bmp";
     const char *image_to_use = input_image;
@@ -53,19 +49,18 @@ int run_pipeline_full(const char *input_image, double rotation_angle){
         image_to_use = prep_output;
     }
 
-    snprintf(cmd, sizeof(cmd), "make -C ../detection");
-    if(run_command(cmd, "Compilation Decoupage") != 0) return -1;
-
-    snprintf(cmd, sizeof(cmd), "../detection/test_decoupe '%s' auto_run", image_to_use);
-    if(run_command(cmd, "Execution Decoupage") != 0) return -1;
+    snprintf(cmd, sizeof(cmd),
+             "make -C ../detection && ../detection/test_decoupe '%s' auto_run",
+             image_to_use);
+    if(run_command(cmd, "Compilation et execution Decoupage") != 0) return -1;
 
     snprintf(cmd, sizeof(cmd),
              "make -C ../ocr && cd ../ocr && ./main 3 ../output/auto_run ../output/auto_run");
-    if(run_command(cmd, "Execution OCR") != 0) return -1;
+    if(run_command(cmd, "Compilation et execution OCR") != 0) return -1;
 
     snprintf(cmd, sizeof(cmd),
-             "make -C ../Solver && ../Solver/solver '../output/auto_run/grid.txt' '../output/auto_run/word.txt' ../Solver/grid ../Solver/mots");
-    if(run_command(cmd, "Execution Solver") != 0) return -1;
+             "make -C ../Solver && ../Solver/solver '../output/auto_run/grid.txt' '../output/auto_run/word.txt'");
+    if(run_command(cmd, "Compilation et execution Solver") != 0) return -1;
 
     return 0;
 }

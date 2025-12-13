@@ -202,15 +202,13 @@ static void on_save_button_clicked(GtkButton *btn, gpointer user_data){
 static void on_clean_button_clicked(GtkButton *btn, gpointer user_data){
     (void)btn;
     AppWidgets *aw = (AppWidgets*)user_data;
-    update_status(aw, "Nettoyage du dossier output...");
-    int ret = clean_output();
-    if(ret == 0){
-        update_status(aw, "Nettoyage termine !");
-        show_info_dialog(GTK_WINDOW(aw->window), "Le dossier output a ete nettoye avec succes.");
-    } else {
-        update_status(aw, "Erreur lors du nettoyage.");
-        show_info_dialog(GTK_WINDOW(aw->window), "Erreur lors du nettoyage du dossier output.");
-    }
+    update_status(aw, "Nettoyage des dossiers et make clean dans les modules...");
+    clean_output();
+    run_command("make -C ../Preprocessing clean", "Clean Preprocessing");
+    run_command("make -C ../detection clean", "Clean Detection");
+    run_command("make -C ../ocr clean", "Clean OCR");
+    run_command("make -C ../Solver clean", "Clean Solver");
+    update_status(aw, "Nettoyage termine !");
 }
 
 static void on_run_button_clicked(GtkButton *btn, gpointer user_data){
@@ -228,7 +226,7 @@ static void on_run_button_clicked(GtkButton *btn, gpointer user_data){
     gtk_widget_set_sensitive(aw->clean_btn, TRUE);
     if(result == 0){
         update_status(aw, "Pipeline termine avec succes !");
-        show_info_dialog(GTK_WINDOW(aw->window), 
+        show_info_dialog(GTK_WINDOW(aw->window),
             "Pipeline OCR termine avec succes !\n\n"
             "Resultats disponibles dans:\n"
             "- ../output/ (images pretraitees)\n"
@@ -236,7 +234,7 @@ static void on_run_button_clicked(GtkButton *btn, gpointer user_data){
             "- ../Solver/coordonnees (solution)");
     } else {
         update_status(aw, "Erreur dans le pipeline.");
-        show_info_dialog(GTK_WINDOW(aw->window), 
+        show_info_dialog(GTK_WINDOW(aw->window),
             "Une erreur s'est produite dans le pipeline.\n"
             "Verifiez la console pour plus de details.");
     }
@@ -374,7 +372,7 @@ int init_gui(int argc, char **argv, AppWidgets **out_widgets){
     gtk_widget_set_size_request(aw->run_btn, 140, 45);
     gtk_box_pack_start(GTK_BOX(right_col), aw->run_btn, FALSE, FALSE, 20);
 
-    aw->clean_btn = gtk_button_new_with_label("Clean Output");
+    aw->clean_btn = gtk_button_new_with_label("Clean");
     gtk_widget_set_name(aw->clean_btn, "cleanbtn");
     gtk_widget_set_size_request(aw->clean_btn, 140, 40);
     gtk_box_pack_start(GTK_BOX(right_col), aw->clean_btn, FALSE, FALSE, 4);
