@@ -23,10 +23,13 @@ static void ensure_output_folder(void){
     if(mkdir("../output", 0777) != 0 && errno != EEXIST){
         fprintf(stderr, "Impossible de creer ../output\n");
     }
+    if(mkdir("../Solver", 0777) != 0 && errno != EEXIST){
+        fprintf(stderr, "Impossible de creer ../Solver\n");
+    }
 }
 
 int clean_output(void){
-    system("rm -rf ../output/*");
+    system("rm -rf ../output/* ../Solver/*");
     ensure_output_folder();
     return 0;
 }
@@ -61,7 +64,7 @@ int run_pipeline_full(const char *input_image, double rotation_angle){
     if(run_command(cmd, "Execution OCR") != 0) return -1;
 
     snprintf(cmd, sizeof(cmd),
-             "make -C ../Solver && ../Solver/solver '../output/auto_run/grid.txt' '../output/auto_run/word.txt'");
+             "make -C ../Solver && ../Solver/solver '../output/auto_run/grid.txt' '../output/auto_run/word.txt' ../Solver/grid ../Solver/mots");
     if(run_command(cmd, "Execution Solver") != 0) return -1;
 
     return 0;
