@@ -7,7 +7,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <math.h>
-#include <SDL.h>
+#include <SDL2/SDL.h>
 
 /* =============================================================================
    STRUCTURES DE DONNÉES
