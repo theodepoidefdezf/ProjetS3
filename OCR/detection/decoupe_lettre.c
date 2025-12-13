@@ -840,5 +840,3 @@ int save_all_words(const Image *list_img, Rectangle *lines, int num_lines, const
     printf("  ✓ %d caractères sauvegardés\n", total);
     return total;
 }
-
-
