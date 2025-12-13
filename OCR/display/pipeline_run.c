@@ -50,12 +50,12 @@ int run_pipeline_full(const char *input_image, double rotation_angle){
     }
 
     snprintf(cmd, sizeof(cmd),
-             "make -C ../detection && cd ../detection && ./test_decoupe '%s' auto_run",
+             "make -C ../detection && cd ../detection && ./test_decoupe '%s'",
              image_to_use);
     if(run_command(cmd, "Compilation et execution Decoupage") != 0) return -1;
 
     snprintf(cmd, sizeof(cmd),
-             "make -C ../ocr && cd ../ocr && ./main 3 ../output/auto_run ../Solver");
+             "make -C ../ocr && cd ../ocr && ./main 3 ../output/test ../Solver");
     if(run_command(cmd, "Compilation et execution OCR") != 0) return -1;
 
     snprintf(cmd, sizeof(cmd),
