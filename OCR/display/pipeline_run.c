@@ -68,3 +68,4 @@ int run_pipeline_full(const char *input_image, double rotation_angle){
 void run_pipeline(const char *input_image){
     run_pipeline_full(input_image, 0.0);
 }
+/**/
