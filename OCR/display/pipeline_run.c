@@ -55,11 +55,11 @@ int run_pipeline_full(const char *input_image, double rotation_angle){
     if(run_command(cmd, "Compilation et execution Decoupage") != 0) return -1;
 
     snprintf(cmd, sizeof(cmd),
-             "make -C ../ocr && ../ocr/main ../output/auto_run/2_cells cell");
+             "make -C ../ocr && cd ../ocr && ./main 3 ../output/auto_run ../output/auto_run");
     if(run_command(cmd, "Compilation et execution OCR") != 0) return -1;
 
     snprintf(cmd, sizeof(cmd),
-             "make -C ../Solver && ../Solver/solver '../Solver/grid' '../Solver/mots'");
+             "make -C ../Solver && ../Solver/solver '../output/auto_run/grid.txt' '../output/auto_run/word.txt'");
     if(run_command(cmd, "Compilation et execution Solver") != 0) return -1;
 
     return 0;
