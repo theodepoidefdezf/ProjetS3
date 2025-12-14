@@ -49,11 +49,11 @@ int run_pipeline_full(const char *input_image, double rotation_angle, AppWidgets
     if(run_command(cmd, "OCR") != 0) return -1;
 
     snprintf(cmd, sizeof(cmd),
-             "cd ../Solver && make && ./solver 'grid' 'mots'");
+             "cd ../Solver && make && ./solver grid mots");
     if(run_command(cmd, "Solver") != 0) return -1;
 
     snprintf(cmd, sizeof(cmd),
-             "make -C ../Coo && ../Coo/cooo ../output/test/2_cells/ ../output/test/1_blocks/block_0_grille_raw.pbm ../Solver/coordonnees");
+             "make -C ../Cooo && ../Cooo/cooo ../output/test/2_cells/ ../output/test/1_blocks/block_0_grille_raw.pbm ../Solver/coordonnees");
     if(run_command(cmd, "Cooo") != 0) return -1;
 
     const char *cooo_output = "../output/output_with_coords.pbm";
