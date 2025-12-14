@@ -1,9 +1,5 @@
 #include "decoupe.h"
 
-/* =============================================================================
-   SECTION 1 : FONCTIONS UTILITAIRES
-   ============================================================================= */
-
 static int *calculate_histogram(const Image *img, int horizontal) {
     int size = horizontal ? img->height : img->width;
     int *hist = (int *)calloc(size, sizeof(int));
@@ -43,9 +39,7 @@ static Rectangle apply_padding(Rectangle rect, int pad_x, int pad_y, int img_w, 
     return p;
 }
 
-/* =============================================================================
-   SECTION 2 : DÉTECTION DE ZONES PAR VALLÉES
-   ============================================================================= */
+
 
 static Segment *find_zones_by_valleys(int *hist, int size, int min_gap, int *num) {
     *num = 0;
@@ -80,18 +74,12 @@ static Segment *find_zones_by_valleys(int *hist, int size, int min_gap, int *num
     return zones;
 }
 
-/* =============================================================================
-   SECTION 3 : SEGMENTATION DE LA GRILLE
-   ============================================================================= */
 
-// Seuil pour considérer une ligne/colonne comme une bordure de grille
 #define GRID_BORDER_THRESHOLD 0.65
 
-// Trouve les groupes de lignes/colonnes à haute densité (bordures)
 static Segment *find_border_groups(int *hist, int size, int dimension, double threshold, int *num_groups) {
     *num_groups = 0;
     
-    // Trouver toutes les lignes/colonnes à haute densité
     int *borders = (int *)malloc(size * sizeof(int));
     int num_borders = 0;
     
@@ -107,7 +95,7 @@ static Segment *find_border_groups(int *hist, int size, int dimension, double th
         return NULL;
     }
     
-    // Grouper les bordures consécutives (gap max = 3 pixels)
+    
     Segment *groups = (Segment *)malloc(num_borders * sizeof(Segment));
     int start = borders[0];
     int end = borders[0];
@@ -131,13 +119,13 @@ static Segment *find_border_groups(int *hist, int size, int dimension, double th
     return groups;
 }
 
-// Méthode 1 : Détection par vallées (grilles sans bordures épaisses)
+
 static GridCells segment_by_valleys(const Image *grid_img, int *h_hist, int *v_hist) {
     GridCells result = {NULL, 0, 0, 0};
     
     printf("    [Méthode vallées] Analyse...\n");
     
-    // Trouver les vallées (zones de faible densité)
+   
     int num_h_zones = 0;
     Segment *h_zones = find_zones_by_valleys(h_hist, grid_img->height, 3, &num_h_zones);
     
@@ -153,7 +141,7 @@ static GridCells segment_by_valleys(const Image *grid_img, int *h_hist, int *v_h
     
     printf("      → %d lignes × %d colonnes détectées\n", num_h_zones, num_v_zones);
     
-    // Filtrer les zones trop denses (bordures)
+    
     int *valid_rows = (int *)malloc(num_h_zones * sizeof(int));
     int valid_row_count = 0;
     
@@ -225,7 +213,7 @@ static GridCells segment_by_valleys(const Image *grid_img, int *h_hist, int *v_h
     return result;
 }
 
-// Méthode 2 : Détection par bordures (grilles avec cadres épais)
+
 static GridCells segment_by_borders(const Image *grid_img, int *h_hist, int *v_hist) {
     GridCells result = {NULL, 0, 0, 0};
     
@@ -286,12 +274,11 @@ GridCells segment_grid_cells(const Image *grid_img) {
     GridCells result = {NULL, 0, 0, 0};
     
     printf("\n[Segmentation Grille] Analyse (%dx%d)...\n", grid_img->width, grid_img->height);
-    
-    // Calculer les histogrammes une seule fois
+   
     int *h_hist = calculate_histogram(grid_img, 1);
     int *v_hist = calculate_histogram(grid_img, 0);
     
-    // STRATÉGIE 1 : Essayer d'abord la détection par bordures
+    
     result = segment_by_borders(grid_img, h_hist, v_hist);
     
     if (result.num_cells > 0) {
@@ -301,7 +288,7 @@ GridCells segment_grid_cells(const Image *grid_img) {
         return result;
     }
     
-    // STRATÉGIE 2 : Si échec, utiliser la méthode par vallées
+   
     printf("    [Fallback] Passage à la méthode vallées...\n");
     result = segment_by_valleys(grid_img, h_hist, v_hist);
     
@@ -317,9 +304,6 @@ GridCells segment_grid_cells(const Image *grid_img) {
     return result;
 }
 
-/* =============================================================================
-   SECTION 5 : SEGMENTATION DES MOTS
-   ============================================================================= */
 
 Rectangle *segment_word_lines(const Image *list_img, int *num_lines) {
     *num_lines = 0;
@@ -345,9 +329,7 @@ Rectangle *segment_word_lines(const Image *list_img, int *num_lines) {
     return lines;
 }
 
-/* =============================================================================
-   SECTION 6 : COMPOSANTES CONNEXES
-   ============================================================================= */
+
 
 typedef struct {
     int *pixels;
@@ -510,16 +492,13 @@ Rectangle *segment_line_characters(const Image *line_img, int *num_chars) {
     return chars;
 }
 
-/* =============================================================================
-   SECTION 7 : NETTOYAGE INTELLIGENT DES CELLULES DE GRILLE
-   ============================================================================= */
+
 
 #define CELL_BORDER_THRESHOLD 0.80
 
 static int cell_has_borders(const Image *cell) {
     if (!cell || !cell->data || cell->width < 5 || cell->height < 5) return 0;
     
-    // Vérifier les premières lignes
     for (int y = 0; y < 2; y++) {
         int black = 0;
         for (int x = 0; x < cell->width; x++) {
@@ -528,7 +507,6 @@ static int cell_has_borders(const Image *cell) {
         if ((double)black / cell->width >= CELL_BORDER_THRESHOLD) return 1;
     }
     
-    // Vérifier les dernières lignes
     for (int y = cell->height - 2; y < cell->height; y++) {
         int black = 0;
         for (int x = 0; x < cell->width; x++) {
@@ -537,7 +515,7 @@ static int cell_has_borders(const Image *cell) {
         if ((double)black / cell->width >= CELL_BORDER_THRESHOLD) return 1;
     }
     
-    // Vérifier les premières colonnes
+    
     for (int x = 0; x < 2; x++) {
         int black = 0;
         for (int y = 0; y < cell->height; y++) {
@@ -546,7 +524,7 @@ static int cell_has_borders(const Image *cell) {
         if ((double)black / cell->height >= CELL_BORDER_THRESHOLD) return 1;
     }
     
-    // Vérifier les dernières colonnes
+    
     for (int x = cell->width - 2; x < cell->width; x++) {
         int black = 0;
         for (int y = 0; y < cell->height; y++) {
@@ -564,7 +542,7 @@ static Image clean_cell_borders(const Image *cell) {
     int top = 0, bottom = cell->height - 1;
     int left = 0, right = cell->width - 1;
     
-    // Supprimer les lignes du haut
+   
     while (top < cell->height) {
         int black = 0;
         for (int x = 0; x < cell->width; x++) {
@@ -577,7 +555,7 @@ static Image clean_cell_borders(const Image *cell) {
         }
     }
     
-    // Supprimer les lignes du bas
+    
     while (bottom > top) {
         int black = 0;
         for (int x = 0; x < cell->width; x++) {
@@ -590,7 +568,7 @@ static Image clean_cell_borders(const Image *cell) {
         }
     }
     
-    // Supprimer les colonnes de gauche
+    
     while (left < cell->width) {
         int black = 0;
         for (int y = top; y <= bottom; y++) {
@@ -604,7 +582,7 @@ static Image clean_cell_borders(const Image *cell) {
         }
     }
     
-    // Supprimer les colonnes de droite
+    
     while (right > left) {
         int black = 0;
         for (int y = top; y <= bottom; y++) {
@@ -629,7 +607,7 @@ static Image clean_cell_borders(const Image *cell) {
     return create_sub_image(cell, crop);
 }
 
-// Recadre l'image sur son contenu (bounding box des pixels noirs)
+
 static Image crop_to_content(const Image *img) {
     if (!img || !img->data) return (Image){NULL, 0, 0};
     
@@ -674,18 +652,17 @@ static Image crop_to_content(const Image *img) {
 static Image clean_cell_content(const Image *cell) {
     if (!cell || !cell->data) return (Image){NULL, 0, 0};
     
-    // Si pas de bordures, juste recadrer sur le contenu
+    
     if (!cell_has_borders(cell)) {
         return crop_to_content(cell);
     }
     
-    // ÉTAPE 1 : Supprimer les bordures continues
     Image cleaned = clean_cell_borders(cell);
     if (!cleaned.data) {
         return crop_to_content(cell);
     }
     
-    // ÉTAPE 2 : Recadrer sur le contenu
+    
     Image cropped = crop_to_content(&cleaned);
     free_image(&cleaned);
     
@@ -693,7 +670,7 @@ static Image clean_cell_content(const Image *cell) {
         return crop_to_content(cell);
     }
     
-    // ÉTAPE 3 : Si encore des bordures, nettoyer à nouveau
+    
     if (cell_has_borders(&cropped)) {
         Image final = clean_cell_borders(&cropped);
         free_image(&cropped);
@@ -708,9 +685,7 @@ static Image clean_cell_content(const Image *cell) {
     return cropped;
 }
 
-/* =============================================================================
-   SECTION 8 : NORMALISATION 50x50
-   ============================================================================= */
+
 
 static Image normalize_to_target(const Image *letter) {
     Image result;
@@ -742,9 +717,7 @@ static Image normalize_to_target(const Image *letter) {
     return result;
 }
 
-/* =============================================================================
-   SECTION 9 : SAUVEGARDE
-   ============================================================================= */
+
 
 int save_all_grid_cells(const Image *grid_img, GridCells cells, const char *base_dir) {
     printf("\n[Sauvegarde Grille] %d cellules (%dx%d)...\n",

@@ -1,8 +1,6 @@
 #include "decoupe.h"
 
-/* =============================================================================
-   SECTION 1 : GESTION DES FICHIERS ET MÉMOIRE
-   ============================================================================= */
+
 
 int create_dir_recursively(const char *path) {
     char tmp[256];
@@ -95,7 +93,6 @@ int write_pbm(const Image *img, const char *filepath) {
 Image create_sub_image(const Image *source, Rectangle rect) {
     Image sub = {NULL, 0, 0};
     
-    // Clamping
     if (rect.x < 0) { rect.width += rect.x; rect.x = 0; }
     if (rect.y < 0) { rect.height += rect.y; rect.y = 0; }
     if (rect.x + rect.width > source->width) rect.width = source->width - rect.x;
@@ -139,9 +136,7 @@ void free_image(Image *img) {
     }
 }
 
-/* =============================================================================
-   SECTION 2 : HISTOGRAMMES ET DÉTECTION DES ZONES
-   ============================================================================= */
+
 
 static int *calculate_histogram(const Image *img, int horizontal) {
     int size = horizontal ? img->height : img->width;
@@ -225,9 +220,7 @@ static Segment *merge_close_zones(Segment *zones, int num_zones, int *num_merged
     return merged;
 }
 
-/* =============================================================================
-   SECTION 3 : DÉTECTION DES COMPOSANTES (pour nettoyage)
-   ============================================================================= */
+
 
 static Rectangle *find_segments_from_hist(int *hist, int size, int gap_threshold,
                                           int noise_threshold, int *num_segments) {
@@ -302,9 +295,6 @@ Rectangle *find_all_components(const Image *img, int *num_blocks) {
     return blocks;
 }
 
-/* =============================================================================
-   SECTION 4 : NETTOYAGE DE L'IMAGE
-   ============================================================================= */
 
 static double calculate_block_density(const Image *img, Rectangle rect) {
     long pixels = 0;
@@ -342,7 +332,7 @@ Image clean_image(const Image *original, Rectangle *blocks, int num_blocks) {
         long surface = (long)rect.width * rect.height;
         double density = calculate_block_density(original, rect);
         
-        // Filtrer dessins, bannières, lignes faibles, bruit
+  
         if (surface > DRAWING_MIN_SURFACE && density > DRAWING_MIN_DENSITY) continue;
         if (rect.width > original->width * 0.7 && rect.height < original->height * 0.15 &&
             rect.y < original->height / 2 && density > 0.05) continue;
@@ -356,11 +346,7 @@ Image clean_image(const Image *original, Rectangle *blocks, int num_blocks) {
     return clean;
 }
 
-/* =============================================================================
-   SECTION 5 : SUPPRESSION DES BORDURES DE GRILLE
-   ============================================================================= */
 
-// Vérifie si une ligne contient un trait continu (bordure)
 static int is_border_line(const Image *img, int y) {
     int consecutive = 0, max_consecutive = 0;
     
@@ -376,7 +362,7 @@ static int is_border_line(const Image *img, int y) {
     return (max_consecutive >= img->width * BORDER_CONTINUITY_THRESHOLD);
 }
 
-// Vérifie si une colonne contient un trait continu (bordure)
+
 static int is_border_col(const Image *img, int x) {
     int consecutive = 0, max_consecutive = 0;
     
@@ -400,41 +386,38 @@ Image remove_grid_frame(const Image *grid_img) {
     int top = 0, bottom = grid_img->height - 1;
     int left = 0, right = grid_img->width - 1;
     
-    // Épaisseur max autorisée (5% de chaque dimension)
     int max_v_border = grid_img->height * 0.05;
     int max_h_border = grid_img->width * 0.05;
     if (max_v_border < 2) max_v_border = 2;
     if (max_h_border < 2) max_h_border = 2;
     
-    // Scanner depuis le haut
+  
     int removed_top = 0;
     while (top < grid_img->height && removed_top < max_v_border && is_border_line(grid_img, top)) {
         top++;
         removed_top++;
     }
     
-    // Scanner depuis le bas
     int removed_bottom = 0;
     while (bottom > top && removed_bottom < max_v_border && is_border_line(grid_img, bottom)) {
         bottom--;
         removed_bottom++;
     }
     
-    // Scanner depuis la gauche
+   
     int removed_left = 0;
     while (left < grid_img->width && removed_left < max_h_border && is_border_col(grid_img, left)) {
         left++;
         removed_left++;
     }
     
-    // Scanner depuis la droite
+    
     int removed_right = 0;
     while (right > left && removed_right < max_h_border && is_border_col(grid_img, right)) {
         right--;
         removed_right++;
     }
     
-    // Vérifier si des bordures ont été détectées
     int new_width = right - left + 1;
     int new_height = bottom - top + 1;
     
@@ -453,14 +436,10 @@ Image remove_grid_frame(const Image *grid_img) {
         return copy_image(grid_img);
     }
     
-    // Créer l'image croppée
     Rectangle crop = {left, top, new_width, new_height};
     return create_sub_image(grid_img, crop);
 }
 
-/* =============================================================================
-   SECTION 6 : DÉTECTION GRILLE/LISTE
-   ============================================================================= */
 
 Rectangle *detect_grid_and_list(const Image *img, int *num_blocks) {
     *num_blocks = 0;
@@ -490,7 +469,7 @@ Rectangle *detect_grid_and_list(const Image *img, int *num_blocks) {
     
     printf("[Détection] Zones brutes: X:%d, Y:%d\n", num_x, num_y);
     
-    // Fusion si trop de zones
+    
     Segment *x_final = x_zones;
     Segment *y_final = y_zones;
     int num_x_final = num_x;
@@ -505,7 +484,7 @@ Rectangle *detect_grid_and_list(const Image *img, int *num_blocks) {
         free(y_zones);
     }
     
-    // Créer les blocs
+    
     Rectangle *blocks = (Rectangle *)malloc(num_x_final * num_y_final * sizeof(Rectangle));
     if (!blocks) {
         free(x_final);

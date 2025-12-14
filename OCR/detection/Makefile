@@ -9,7 +9,7 @@ OBJS = $(SRCS:.c=.o)
 .PHONY: all clean run debug help
 
 all: $(TARGET)
-	@echo "✓ Compilation terminée: ./$(TARGET)"
+	@echo "Compilation terminée: ./$(TARGET)"
 
 $(TARGET): $(OBJS)
 	@echo "Édition des liens..."
@@ -21,7 +21,7 @@ $(TARGET): $(OBJS)
 
 clean:
 	@rm -f $(TARGET) $(OBJS)
-	@echo "✓ Nettoyage terminé"
+	@echo "Nettoyage terminé"
 
 run: all
 	@echo ""
@@ -29,7 +29,7 @@ run: all
 
 debug: CFLAGS += -g -O0 -DDEBUG
 debug: clean all
-	@echo "✓ Version debug compilée"
+	@echo "Version debug compilée"
 
 help:
 	@echo "╔════════════════════════════════════════╗"

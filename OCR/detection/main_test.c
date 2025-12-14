@@ -2,7 +2,7 @@
 #include <dirent.h>
 #include <unistd.h>
 
-// Supprime récursivement le contenu d'un dossier (mais garde le dossier)
+
 static void clean_directory(const char *dir_path) {
     DIR *dir = opendir(dir_path);
     if (!dir) return;
@@ -11,7 +11,7 @@ static void clean_directory(const char *dir_path) {
     char path[1024];
     
     while ((entry = readdir(dir)) != NULL) {
-        // Ignorer . et ..
+        
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
             continue;
         
@@ -20,11 +20,11 @@ static void clean_directory(const char *dir_path) {
         struct stat st;
         if (stat(path, &st) == 0) {
             if (S_ISDIR(st.st_mode)) {
-                // Récursion pour les sous-dossiers
+               
                 clean_directory(path);
                 rmdir(path);
             } else {
-                // Supprimer le fichier
+                
                 unlink(path);
             }
         }
@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
     
     SDL_Init(SDL_INIT_VIDEO);
     
-    // Arborescence de sortie
+    
     char base_dir[512], dir_debug[512], dir_blocks[512], dir_cells[512], dir_words[512];
     snprintf(base_dir, sizeof(base_dir), "../output/%s", test_name);
     snprintf(dir_debug, sizeof(dir_debug), "%s/0_debug", base_dir);
@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
     snprintf(dir_cells, sizeof(dir_cells), "%s/2_cells", base_dir);
     snprintf(dir_words, sizeof(dir_words), "%s/3_words", base_dir);
     
-    // Nettoyer les dossiers existants avant de commencer
+    
     clean_directory(dir_debug);
     clean_directory(dir_blocks);
     clean_directory(dir_cells);
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
     
     char path[512];
     
-    // ========== ÉTAPE 1 : CHARGEMENT ==========
+    
     printf("[ÉTAPE 1] Chargement...\n");
     printf("  Fichier: %s\n", argv[1]);
     
@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
     snprintf(path, sizeof(path), "%s/original.pbm", dir_debug);
     write_pbm(&img, path);
     
-    // ========== ÉTAPE 2 : NETTOYAGE ==========
+    
     printf("[ÉTAPE 2] Nettoyage...\n");
     
     int num_comp = 0;
@@ -95,8 +95,7 @@ int main(int argc, char *argv[]) {
     snprintf(path, sizeof(path), "%s/cleaned.pbm", dir_debug);
     write_pbm(&clean, path);
     printf("  ✓ Image nettoyée\n\n");
-    
-    // ========== ÉTAPE 3 : DÉTECTION BLOCS ==========
+   
     printf("[ÉTAPE 3] Détection grille/liste...\n");
     
     int num_blocs = 0;
@@ -108,7 +107,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
-    // Identifier la grille (bloc le plus carré et le plus grand)
     int grid_idx = -1;
     long max_surf = 0;
     
@@ -129,7 +127,7 @@ int main(int argc, char *argv[]) {
     if (grid_idx == -1) grid_idx = 0;
     printf("  ✓ Grille = Bloc %d\n\n", grid_idx);
     
-    // ========== ÉTAPE 4 : EXTRACTION DES BLOCS ==========
+    
     printf("[ÉTAPE 4] Extraction des blocs...\n");
     
     Image grid_img = {0};
@@ -158,19 +156,19 @@ int main(int argc, char *argv[]) {
     free_image(&clean);
     printf("\n");
     
-    // ========== ÉTAPE 4bis : NETTOYAGE BORDURES GRILLE ==========
+   
     if (grid_img.data) {
         printf("[ÉTAPE 4bis] Suppression des bordures de la grille...\n");
         
         Image grid_clean = remove_grid_frame(&grid_img);
         
         if (grid_clean.data) {
-            // Sauvegarder la version nettoyée
+           
             snprintf(path, sizeof(path), "%s/block_%d_grille_clean.pbm", dir_blocks, grid_idx);
             write_pbm(&grid_clean, path);
             printf("  ✓ GRILLE (nettoyée): %s\n", path);
             
-            // Remplacer l'image brute par la version propre
+            
             free_image(&grid_img);
             grid_img = grid_clean;
         } else {
@@ -179,7 +177,7 @@ int main(int argc, char *argv[]) {
         printf("\n");
     }
     
-    // ========== ÉTAPE 5 : SEGMENTATION GRILLE ==========
+    
     if (grid_img.data) {
         printf("[ÉTAPE 5] Segmentation de la grille...\n");
         
@@ -197,8 +195,7 @@ int main(int argc, char *argv[]) {
         
         free_image(&grid_img);
     }
-    
-    // ========== ÉTAPE 6 : SEGMENTATION LISTE ==========
+   
     if (list_img.data) {
         printf("\n[ÉTAPE 6] Segmentation de la liste...\n");
         
@@ -215,7 +212,7 @@ int main(int argc, char *argv[]) {
         free_image(&list_img);
     }
     
-    // ========== FIN ==========
+    
     SDL_Quit();
     
     printf("\n========================================\n");
