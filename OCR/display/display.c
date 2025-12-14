@@ -50,7 +50,7 @@ static GdkPixbuf* rotate_pixbuf(GdkPixbuf *src, double degrees){
     return res;
 }
 
-static void update_display_pixbuf(AppWidgets *aw){
+void update_display_pixbuf(AppWidgets *aw){
     if(aw->display_pixbuf){ g_object_unref(aw->display_pixbuf); aw->display_pixbuf = NULL; }
     if(!aw->orig_pixbuf) return;
     GdkPixbuf *rot = rotate_pixbuf(aw->orig_pixbuf, aw->rotation_angle);
@@ -221,7 +221,7 @@ static void on_run_button_clicked(GtkButton *btn, gpointer user_data){
     gtk_widget_set_sensitive(aw->run_btn, FALSE);
     gtk_widget_set_sensitive(aw->clean_btn, FALSE);
     update_status(aw, "Lancement du pipeline OCR complet...");
-    int result = run_pipeline_full(aw->current_image_path, aw->rotation_angle);
+    int result = run_pipeline_full(aw->current_image_path, aw->rotation_angle, aw);
     gtk_widget_set_sensitive(aw->run_btn, TRUE);
     gtk_widget_set_sensitive(aw->clean_btn, TRUE);
     if(result == 0){

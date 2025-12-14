@@ -14,6 +14,7 @@ int main(int argc, char *argv[]) {
 
     char first_line_path[MAX_PATH];
     concat_path(first_line_path, cells_path, "/line_00");
+
     int max_col = find_max_index(first_line_path, "cell_", ".pbm");
     if (max_col < 0) return 1;
     int num_cols = max_col + 1;
@@ -39,6 +40,5 @@ int main(int argc, char *argv[]) {
     }
 
     write_pbm("output_with_coords.pbm", img);
-
     return 0;
 }

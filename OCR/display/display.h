@@ -30,5 +30,6 @@ typedef struct {
 AppWidgets* app_widgets_new(void);
 void app_widgets_free(AppWidgets* aw);
 int init_gui(int argc, char **argv, AppWidgets **out_widgets);
+void update_display_pixbuf(AppWidgets *aw);
 
 #endif

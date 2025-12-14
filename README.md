@@ -1,14 +1,68 @@
-ProjetS3 :
+Projet S3 – Fonctionnement général
 
-Ici on va mettre tout les fonctionnements autour de la realisation du projet.
-Il devra être basé sur du neural network et du deep learning.
+Le projet est basé sur les réseaux de neurones et le deep learning. Il permet de traiter des images, de reconnaître des caractères (OCR) et de résoudre le problème final à l’aide d’un solveur. Le projet est divisé en plusieurs modules.
 
-pour le prétraitement :
-il faut se rendre dans le dossier Preprocessing, puis faire make. par la suite il faut faire ./preprocessing_test ../Images/Niveau... . On peut choisir le niveau de l'image que l'on veut ainsi que l'image que l'on veut.Puis on va output et on fait open image...  et l'image final apparait.
 
-pour le Réseau de Neurones :
+Interface graphique (Display)
 
-il faut aller dans le dossier ocr et faire gcc neural_network.c -lm -o xnor_network puis ./xnor_network  et le résultat s'affichera.
+Aller dans le dossier display
+Compiler avec :
 
-pour le solver :
-il faut aller dans le dossier solver, faire make et ./solver grid MOT_A_CHERCHER . Et le résultat s'affichera.
+make
+
+Lancer l’interface graphique avec :
+
+./display
+
+L’interface affiche tous les modules du projet et, lors du run final, toutes les images générées.
+
+
+Prétraitement
+
+Aller dans le dossier Preprocessing
+Compiler avec :
+
+make
+
+Lancer le prétraitement avec :
+
+./preprocessing_test ../Images/Niveau…
+
+On peut choisir le niveau et l’image à traiter.
+L’image finale est générée dans le dossier output.
+
+
+Découpage
+
+Compiler le module avec :
+
+make
+
+Lancer le découpage sur l’image prétraitée :
+
+fichier executable ../output/image_noise_auto.bmp
+
+
+Réseau de neurones (OCR)
+
+Aller dans le dossier ocr
+Compiler avec :
+
+make
+
+Lancer l’exécutable.
+Les caractères reconnus s’affichent directement.
+
+
+Solveur
+
+Aller dans le dossier solver
+Compiler avec :
+
+make
+
+Lancer le solveur avec :
+
+./solver grid mots
+
+Le résultat final s’affiche à l’écran.
